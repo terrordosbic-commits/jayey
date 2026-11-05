@@ -9,6 +9,52 @@
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
+.smokeBurst {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.smokePuff {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: clamp(110px, 30vw, 260px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  opacity: 0;
+  background:
+    radial-gradient(ellipse at 38% 38%, rgb(245 238 255 / 82%) 0 8%, transparent 36%),
+    radial-gradient(ellipse at 63% 55%, rgb(178 151 204 / 72%) 0 18%, transparent 55%),
+    radial-gradient(ellipse at 47% 68%, rgb(107 83 126 / 66%) 0 22%, transparent 60%);
+  filter: blur(15px);
+  animation: smoke-pop 1.65s cubic-bezier(0.12, 0.72, 0.25, 1) both;
+}
+
+.smokePuffTwo { --smoke-x: -33vw; --smoke-y: -22vh; animation-delay: 20ms; }
+.smokePuffThree { --smoke-x: 31vw; --smoke-y: -25vh; animation-delay: 55ms; }
+.smokePuffFour { --smoke-x: -38vw; --smoke-y: 15vh; animation-delay: 85ms; }
+.smokePuffFive { --smoke-x: 36vw; --smoke-y: 18vh; animation-delay: 110ms; }
+.smokePuffSix { --smoke-x: -10vw; --smoke-y: -39vh; animation-delay: 140ms; }
+.smokePuffSeven { --smoke-x: 12vw; --smoke-y: 38vh; animation-delay: 170ms; }
+.smokePuffEight { --smoke-x: 0; --smoke-y: 0; width: clamp(180px, 48vw, 420px); animation-delay: 35ms; }
+
+@keyframes smoke-pop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.08);
+  }
+  16% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--smoke-x, 0)), calc(-50% + var(--smoke-y, 0))) scale(1.7);
+  }
+}
+
 .checkout {
   width: min(100%, 1080px);
   margin: 0 auto;
@@ -639,7 +685,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .button {
+  .button,
+  .smokePuff {
     transition: none;
+    animation: none;
   }
 }

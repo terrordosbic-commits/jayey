@@ -17,6 +17,7 @@ type DeliveryZone =
 type DeliveryDetails = {
   name: string;
   phone: string;
+  email: string;
   street: string;
   number: string;
   neighborhood: string;
@@ -50,7 +51,7 @@ type BrickFormData = {
   formData: PaymentFormData;
 };
 type PaymentSettings = {
-  initialization: { amount: number };
+  initialization: { amount: number; payer: { email: string } };
   customization: {
     paymentMethods: {
       creditCard: string;
@@ -158,6 +159,7 @@ export default function CheckoutClient({ publicKey }: { publicKey: string }) {
   const [deliveryForm, setDeliveryForm] = useState<DeliveryDetails>({
     name: "",
     phone: "",
+    email: "",
     street: "",
     number: "",
     neighborhood: "",
@@ -243,7 +245,10 @@ export default function CheckoutClient({ publicKey }: { publicKey: string }) {
           "payment",
           "paymentBrick_container",
           {
-            initialization: { amount: currentOrder.amount },
+            initialization: {
+              amount: currentOrder.amount,
+              payer: { email: currentDetails.email },
+            },
             customization: {
               paymentMethods: {
                 creditCard: "all",
@@ -292,6 +297,7 @@ export default function CheckoutClient({ publicKey }: { publicKey: string }) {
                       customer: {
                         name: currentDetails.name,
                         phone: currentDetails.phone,
+                        email: currentDetails.email,
                       },
                       delivery: currentOrder.fulfillmentType === "delivery"
                         ? {
@@ -433,6 +439,7 @@ export default function CheckoutClient({ publicKey }: { publicKey: string }) {
     const details = {
       name: deliveryForm.name.trim(),
       phone: deliveryForm.phone.replace(/\D/g, ""),
+      email: deliveryForm.email.trim().toLowerCase(),
       street: deliveryForm.street.trim(),
       number: deliveryForm.number.trim(),
       neighborhood: deliveryForm.neighborhood.trim(),
@@ -442,6 +449,8 @@ export default function CheckoutClient({ publicKey }: { publicKey: string }) {
       details.name.length < 2 ||
       details.phone.length < 10 ||
       details.phone.length > 11 ||
+      details.email.length > 254 ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(details.email) ||
       (fulfillment === "delivery" &&
         (details.street.length < 2 ||
           !details.number ||
@@ -449,8 +458,8 @@ export default function CheckoutClient({ publicKey }: { publicKey: string }) {
     ) {
       setError(
         fulfillment === "delivery"
-          ? "Confira seu nome, telefone e endereço para entrega."
-          : "Confira seu nome e telefone para retirada.",
+          ? "Confira seu nome, e-mail, telefone e endereço para entrega."
+          : "Confira seu nome, e-mail e telefone para retirada.",
       );
       return;
     }
@@ -470,7 +479,11 @@ export default function CheckoutClient({ publicKey }: { publicKey: string }) {
         body: JSON.stringify({
           items: JSON.parse(savedItems) as CartLine[],
           fulfillmentType: fulfillment,
-          customer: { name: details.name, phone: details.phone },
+          customer: {
+            name: details.name,
+            phone: details.phone,
+            email: details.email,
+          },
           delivery: fulfillment === "delivery"
             ? {
                 street: details.street,
@@ -527,6 +540,7 @@ export default function CheckoutClient({ publicKey }: { publicKey: string }) {
     setDeliveryForm({
       name: "",
       phone: "",
+      email: "",
       street: "",
       number: "",
       neighborhood: "",
@@ -552,6 +566,18 @@ export default function CheckoutClient({ publicKey }: { publicKey: string }) {
 
   return (
     <section className={styles.checkout}>
+      {payment?.status === "approved" ? (
+        <div className={styles.smokeBurst} aria-hidden="true">
+          <span className={styles.smokePuff} />
+          <span className={`${styles.smokePuff} ${styles.smokePuffTwo}`} />
+          <span className={`${styles.smokePuff} ${styles.smokePuffThree}`} />
+          <span className={`${styles.smokePuff} ${styles.smokePuffFour}`} />
+          <span className={`${styles.smokePuff} ${styles.smokePuffFive}`} />
+          <span className={`${styles.smokePuff} ${styles.smokePuffSix}`} />
+          <span className={`${styles.smokePuff} ${styles.smokePuffSeven}`} />
+          <span className={`${styles.smokePuff} ${styles.smokePuffEight}`} />
+        </div>
+      ) : null}
       <header className={styles.topbar}>
         <Link className={styles.brand} href="/" aria-label="Jay Ey Conveniência, voltar à loja">
           <span className={styles.brandMark} aria-hidden="true">JE</span>
@@ -628,9 +654,9 @@ export default function CheckoutClient({ publicKey }: { publicKey: string }) {
               {checkoutOrder
                 ? "Seu pedido já foi enviado ao dashboard. Escolha Pix ou cartão abaixo."
                 : fulfillment === "pickup"
-                  ? "Informe nome e telefone; depois o pedido será salvo e você seguirá para o pagamento."
+                  ? "Informe nome, e-mail e telefone; depois o pedido será salvo e você seguirá para o pagamento."
                   : fulfillment === "delivery"
-                    ? "Informe seus dados e endereço; depois o pedido será salvo e você seguirá para o pagamento."
+                    ? "Informe nome, e-mail, telefone e endereço; depois o pedido será salvo e você seguirá para o pagamento."
                     : "Escolha retirada no local ou entrega para continuar."}
             </p>
           </div>
@@ -654,7 +680,7 @@ export default function CheckoutClient({ publicKey }: { publicKey: string }) {
                 }}
               >
                 <span className={styles.choiceIcon} aria-hidden="true">⌂</span>
-                <span><strong>Retirar no local</strong><small>Informe nome e telefone; depois escolha o pagamento.</small></span>
+                <span><strong>Retirar no local</strong><small>Informe nome, e-mail e telefone; depois escolha o pagamento.</small></span>
                 <span className={styles.choiceArrow} aria-hidden="true">→</span>
               </button>
               <button
@@ -666,7 +692,7 @@ export default function CheckoutClient({ publicKey }: { publicKey: string }) {
                 }}
               >
                 <span className={styles.choiceIcon} aria-hidden="true">➤</span>
-                <span><strong>Receber por entrega</strong><small>Informe nome, telefone e endereço.</small></span>
+                <span><strong>Receber por entrega</strong><small>Informe nome, e-mail, telefone e endereço.</small></span>
                 <span className={styles.choiceArrow} aria-hidden="true">→</span>
               </button>
             </div>
@@ -687,6 +713,27 @@ export default function CheckoutClient({ publicKey }: { publicKey: string }) {
                   }}
                   required
                   value={deliveryForm.name}
+                />
+              </label>
+              <label>
+                E-mail para o pagamento
+                <input
+                  autoCapitalize="none"
+                  autoComplete="email"
+                  autoCorrect="off"
+                  disabled={savingOrder}
+                  inputMode="email"
+                  maxLength={254}
+                  name="email"
+                  onChange={(event) => {
+                    idempotencyKeyRef.current = null;
+                    setDeliveryForm({ ...deliveryForm, email: event.target.value });
+                  }}
+                  placeholder="voce@email.com"
+                  required
+                  spellCheck={false}
+                  type="email"
+                  value={deliveryForm.email}
                 />
               </label>
               <label>

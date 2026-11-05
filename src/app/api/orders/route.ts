@@ -48,12 +48,16 @@ export async function POST(request: Request) {
   const customerName = typeof customer.name === "string" ? customer.name.trim() : "";
   const customerPhone =
     typeof customer.phone === "string" ? customer.phone.replace(/\D/g, "") : "";
+  const customerEmail =
+    typeof customer.email === "string" ? customer.email.trim().toLowerCase() : "";
   if (
     customerName.length < 2 ||
     customerName.length > 120 ||
-    !/^\d{10,11}$/.test(customerPhone)
+    !/^\d{10,11}$/.test(customerPhone) ||
+    customerEmail.length > 254 ||
+    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail)
   ) {
-    return NextResponse.json({ error: "Informe nome e telefone válidos." }, { status: 400 });
+    return NextResponse.json({ error: "Informe nome, telefone e e-mail válidos." }, { status: 400 });
   }
 
   let deliveryStreet: string | null = null;
@@ -132,7 +136,7 @@ export async function POST(request: Request) {
       deliveryNeighborhood,
       deliveryZone,
       deliveryFeeCents,
-      customerEmail: null,
+      customerEmail,
       items: orderItems,
       amountCents,
       paymentMethodId: null,
@@ -155,6 +159,7 @@ export async function POST(request: Request) {
     order.fulfillment_type !== fulfillmentType ||
     order.customer_name !== customerName ||
     order.customer_phone !== customerPhone ||
+    (order.customer_email !== null && order.customer_email !== customerEmail) ||
     order.delivery_street !== deliveryStreet ||
     order.delivery_number !== deliveryNumber ||
     order.delivery_neighborhood !== deliveryNeighborhood ||

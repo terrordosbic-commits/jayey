@@ -23,6 +23,7 @@ type PaymentData = {
 type CustomerDetails = {
   name?: unknown;
   phone?: unknown;
+  email?: unknown;
 };
 
 type DeliveryDetails = {
@@ -147,7 +148,11 @@ export async function POST(request: Request) {
   }
 
   const payer = isRecord(paymentData.payer) ? paymentData.payer : null;
-  const email = payer && typeof payer.email === "string" ? payer.email.trim() : "";
+  const checkoutEmail =
+    typeof customer.email === "string" ? customer.email.trim().toLowerCase() : "";
+  const payerEmail =
+    payer && typeof payer.email === "string" ? payer.email.trim().toLowerCase() : "";
+  const email = checkoutEmail || payerEmail;
   if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return NextResponse.json({ error: "Informe um e-mail válido no formulário de pagamento." }, { status: 400 });
   }
