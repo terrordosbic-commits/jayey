@@ -541,16 +541,32 @@ $("music-form").addEventListener("submit",async function(event){
  event.preventDefault();
  var file=$("music-file").files[0],button=this.querySelector("button[type=submit]"),message=$("music-message");
  if(!file){message.textContent="Selecione um arquivo de áudio.";return}
+ var maxFileSize=5*1024*1024;
+ if(file.size>maxFileSize){
+  message.textContent="O arquivo "+file.name+" tem "+(file.size/1024/1024).toFixed(1).replace(".",",")+" MB. O limite é 5 MB; reduza o tamanho do áudio e tente novamente.";
+  return;
+ }
  button.disabled=true;message.textContent="Enviando música...";
  try{
   var formData=new FormData();formData.append("music",file);
   var response=await fetch("/api/dashboard/music",{method:"POST",credentials:"same-origin",body:formData});
-  var result=await response.json();
+  var responseText=await response.text(),result=null;
+  if(responseText){
+   try{result=JSON.parse(responseText)}
+   catch{result=null}
+  }
   if(response.status===401){setDashboardAccess(false);throw new Error("Sua sessão expirou. Entre novamente no dashboard.")}
-  if(!response.ok)throw new Error(typeof result.error==="string"?result.error:"Não foi possível trocar a música.");
+  if(!response.ok){
+   var errorMessage=result&&typeof result.error==="string"?result.error:
+    response.status===413
+     ?"A hospedagem recusou o arquivo por ser grande demais. Envie um áudio de até 5 MB."
+     :"Não foi possível trocar a música (HTTP "+response.status+"). Tente um arquivo de até 5 MB.";
+   throw new Error(errorMessage);
+  }
+  if(!result||result.uploaded!==true)throw new Error("O servidor retornou uma resposta inválida ao salvar a música.");
   this.reset();
   message.textContent="Música trocada! Ela já está disponível para os visitantes da loja.";
- }catch(error){message.textContent=error.message||"Não foi possível trocar a música."}
+ }catch(error){message.textContent=error instanceof Error?error.message:"Não foi possível trocar a música. Verifique a conexão e tente novamente."}
  finally{button.disabled=false}
 });
 void checkDashboardSession();
