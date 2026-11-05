@@ -86,6 +86,7 @@ declare global {
 }
 
 const CART_STORAGE_KEY = "jayey.checkout.items.v1";
+const STORE_PHONE = "49999726586";
 const DELIVERY_ZONES: Array<{ id: DeliveryZone; title: string; feeCents: number }> = [
   { id: "promorar_bela_vista", title: "Promorar ou Bela Vista — grátis", feeCents: 0 },
   { id: "santa_helena", title: "Santa Helena — R$ 7,00", feeCents: 700 },
@@ -535,7 +536,9 @@ export default function CheckoutClient({ publicKey }: { publicKey: string }) {
 
   const statusText =
     payment?.status === "approved"
-      ? "Pagamento aprovado."
+      ? fulfillment === "pickup"
+        ? "Pagamento aprovado! Você já pode retirar seu pedido no local."
+        : "Pagamento aprovado."
       : payment?.status === "rejected"
         ? "Pagamento recusado. Tente outro meio de pagamento ou volte à loja."
         : payment
@@ -818,6 +821,15 @@ export default function CheckoutClient({ publicKey }: { publicKey: string }) {
           {payment ? (
             <div className={styles.result} role="status" aria-live="polite">
               <h2>{statusText}</h2>
+              {payment.status === "approved" && fulfillment === "pickup" ? (
+                <div className={styles.pickupSuccess}>
+                  <p>Seu pedido está pronto para retirada no local.</p>
+                  <p>
+                    Ficou com dúvidas?{" "}
+                    <a href={`tel:+55${STORE_PHONE}`}>(49) 99972-6586</a>
+                  </p>
+                </div>
+              ) : null}
               {payment.status === "pending" && payment.qrCodeBase64 ? (
                 <Image
                   className={styles.qr}
