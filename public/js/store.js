@@ -108,10 +108,14 @@ function renderCategoryMenu(){
  var links=Object.keys(S).map(function(id){return '<a href="#'+esc(id)+'">'+esc(S[id][0])+'</a>'}).join("");
  $("category-list").innerHTML=links+'<div class="menu-divider"></div><a href="#kits">Kits sessão</a><a href="#faq">Dúvidas</a>';
 }
-function stockFor(id){return inventory[id]||{stock:null,flavors:[]}}
+function stockFor(id){return inventory[id]||{stock:null,flavors:[],flavor_stock:{}}}
 function countInCart(id){return Object.keys(cart).reduce(function(n,key){
  var item=cart[key],contents=item.contents||[{id:item.id,quantity:1}];
  return n+contents.reduce(function(total,content){return total+(content.id===id?content.quantity*item.q:0)},0);
+},0)}
+function countFlavorInCart(id,flavor){return Object.keys(cart).reduce(function(total,key){
+var item=cart[key];
+return total+(item.id===id&&item.flavor===flavor?item.q:0);
 },0)}
 function notify(message){var t=$("ts");t.textContent=message;t.classList.add("show");setTimeout(function(){t.classList.remove("show");t.textContent="Adicionado ao carrinho"},1800)}
 function loadCart(){
@@ -209,8 +213,8 @@ function syncInventory(){
   return Promise.resolve();
  }
  $("sync-status").textContent="Carregando estoque compartilhado…";
- return supabaseRequest("rest/v1/inventory?select=id,stock,flavors").then(function(rows){
-  rows.forEach(function(row){inventory[row.id]={stock:row.stock,flavors:Array.isArray(row.flavors)?row.flavors:[]}});
+ return supabaseRequest("rest/v1/inventory?select=id,stock,flavors,flavor_stock").then(function(rows){
+  rows.forEach(function(row){inventory[row.id]={stock:row.stock,flavors:Array.isArray(row.flavors)?row.flavors:[],flavor_stock:row.flavor_stock&&typeof row.flavor_stock==="object"?row.flavor_stock:{}}});
   inventoryReady=true;
   $("sync-status").textContent="Estoque e sabores sincronizados.";
   updateFilterOptions();updateKitOptions();render($("q").value.toLowerCase().trim());
@@ -304,6 +308,10 @@ function add(id,n,pr,flavor,cartKey,contents,quantity){
   if(stock===0){notify("Produto esgotado: "+(P.filter(function(p){return p.id===parts[i].id})[0]||{}).n);return}
   if(Number.isInteger(stock)&&countInCart(parts[i].id)+parts[i].quantity*quantity>stock){notify("Quantidade máxima em estoque atingida");return}
  }
+ if(P.some(function(product){return product.id===id&&product.c==="essencias"})){
+  var flavorStock=stockFor(id).flavor_stock[flavor];
+  if(stockFor(id).flavors.indexOf(flavor)===-1||!Number.isInteger(flavorStock)||countFlavorInCart(id,flavor)+quantity>flavorStock){notify("Não há estoque disponível para este sabor");return}
+ }
  if(cart[key])cart[key].q+=quantity;
  else cart[key]={id:id,n:n,flavor:flavor||"",p:pr,q:quantity,contents:parts};
  upd();notify("Adicionado ao carrinho");
@@ -322,9 +330,14 @@ function updateProductDialog(){
   var flavors=current.flavors;
   flavorField.hidden=false;quantityField.hidden=true;
   $("product-dialog-title").textContent="Escolha o sabor da essência";
-  $("product-flavor").innerHTML=flavors.map(function(flavor){return '<option value="'+esc(flavor)+'">'+esc(flavor)+'</option>'}).join("");
+  $("product-flavor").innerHTML=flavors.map(function(flavor){
+   var available=Number.isInteger(current.flavor_stock[flavor])?Math.max(0,current.flavor_stock[flavor]-countFlavorInCart(product.id,flavor)):0;
+   return '<option value="'+esc(flavor)+'" '+(available===0?"disabled":"")+'>'+esc(flavor)+" ("+available+" disponíveis)"+'</option>';
+  }).join("");
   valid=valid&&flavors.length>0;
-  $("product-dialog-note").textContent=remaining===0?"Não há unidades disponíveis no estoque.":flavors.length?"Selecione o sabor que deseja.":"Nenhum sabor cadastrado para esta essência no estoque.";
+  var selectedFlavor=$("product-flavor").value;
+  valid=valid&&Boolean(selectedFlavor)&&Number.isInteger(current.flavor_stock[selectedFlavor])&&current.flavor_stock[selectedFlavor]>countFlavorInCart(product.id,selectedFlavor);
+  $("product-dialog-note").textContent=remaining===0?"Não há unidades disponíveis no estoque.":flavors.length?"Selecione um sabor com estoque disponível.":"Nenhum sabor cadastrado para esta essência no estoque.";
   if(!flavors.length)$("product-flavor").innerHTML='<option value="">Sem sabores cadastrados</option>';
  }else{
   dialog.classList.remove("essence-mode");dialog.classList.add("quantity-mode");
@@ -377,6 +390,7 @@ document.addEventListener("click",function(e){
 });
 $("product-quantity").addEventListener("input",updateProductDialog);
 $("product-quantity").addEventListener("change",updateProductDialog);
+$("product-flavor").addEventListener("change",updateProductDialog);
 $("product-dialog-cancel").onclick=closeProductDialog;
 $("product-dialog-confirm").onclick=function(){
  if(!pendingProduct)return;

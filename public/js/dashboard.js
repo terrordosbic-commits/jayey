@@ -1,9 +1,11 @@
 
-var SALES_STORAGE_KEY="jayey.sales.v1";
 var CATALOG_STORAGE_KEY="jayey.catalog.v1";
+var SALES_STORAGE_KEY="jayey.sales.v1";
 var sharedInventory={};
 var sharedInventoryReady=false;
-var selectedPeriod="day";
+var salesRecords=[];
+var ordersRefreshTimer=null;
+var selectedPeriod="all";
 var categories=[
  {id:"essencias",name:"Essências",description:"Escolha sua marca favorita"},
  {id:"carvao",name:"Carvão",description:"Brasa que dura a sessão toda"},
@@ -23,10 +25,14 @@ function localDateString(date){
 }
 function readSales(){
  var stored=localStorage.getItem(SALES_STORAGE_KEY);
- if(!stored)return [];
- var sales=JSON.parse(stored);
- if(!Array.isArray(sales)||sales.some(function(sale){return !sale||typeof sale.id!=="string"||typeof sale.date!=="string"||!Number.isFinite(sale.amount)||sale.amount<=0}))throw new Error("Os registros de venda salvos estão inválidos.");
- return sales;
+ if(!stored)return salesRecords;
+ var legacySales=JSON.parse(stored);
+ if(!Array.isArray(legacySales)||legacySales.some(function(sale){
+  return !sale||typeof sale.id!=="string"||typeof sale.date!=="string"||!Number.isFinite(sale.amount)||sale.amount<=0;
+ }))throw new Error("Os registros manuais antigos salvos neste navegador estão inválidos.");
+ return salesRecords.concat(legacySales.map(function(sale){
+  return {id:"local-"+sale.id,amount:sale.amount,date:sale.date,source:"legacy",note:""};
+ }));
 }
 function periodSales(){
  var sales=readSales(),now=new Date(),today=localDateString(now);
@@ -36,9 +42,11 @@ function periodSales(){
  var nextMonday=new Date(monday);nextMonday.setDate(nextMonday.getDate()+7);
  var end=localDateString(nextMonday);
  return sales.filter(function(sale){
-  if(selectedPeriod==="day")return sale.date.slice(0,10)===today;
-  if(selectedPeriod==="week")return sale.date>=start&&sale.date<end;
-  return sale.date.slice(0,7)===today.slice(0,7);
+  var date=localDateString(new Date(sale.date));
+  if(selectedPeriod==="all")return true;
+  if(selectedPeriod==="day")return date===today;
+  if(selectedPeriod==="week")return date>=start&&date<end;
+  return date.slice(0,7)===today.slice(0,7);
  });
 }
 function drawSales(){
@@ -47,21 +55,33 @@ function drawSales(){
  $("sales-count").textContent=String(sales.length);
  $("sales-average").textContent=money(sales.length?total/sales.length:0);
  var today=new Date(),buckets=[],title="";
- if(selectedPeriod==="day"){
+ if(selectedPeriod==="all"){
+  title="Vendas por mês · todo o período";
+  var currentMonth=new Date(today.getFullYear(),today.getMonth(),1);
+  for(var monthIndex=11;monthIndex>=0;monthIndex--){
+   var bucketMonth=new Date(currentMonth.getFullYear(),currentMonth.getMonth()-monthIndex,1);
+   buckets.push({label:bucketMonth.toLocaleDateString("pt-BR",{month:"short",year:"2-digit"}),date:bucketMonth.getFullYear()+"-"+String(bucketMonth.getMonth()+1).padStart(2,"0"),amount:0});
+  }
+  sales.forEach(function(sale){
+   var monthKey=localDateString(new Date(sale.date)).slice(0,7);
+   var bucket=buckets.filter(function(item){return item.date===monthKey})[0];
+   if(bucket)bucket.amount+=sale.amount;
+  });
+ }else if(selectedPeriod==="day"){
   title="Vendas por hora · hoje";
   for(var hour=0;hour<24;hour++)buckets.push({label:String(hour).padStart(2,"0")+"h",amount:0});
-  sales.forEach(function(sale){var hour=Number(sale.date.slice(11,13));if(Number.isInteger(hour)&&hour>=0&&hour<24)buckets[hour].amount+=sale.amount});
+  sales.forEach(function(sale){var hour=new Date(sale.date).getHours();if(Number.isInteger(hour)&&hour>=0&&hour<24)buckets[hour].amount+=sale.amount});
  }else if(selectedPeriod==="week"){
   title="Vendas por dia · esta semana";
   var monday=new Date(today.getFullYear(),today.getMonth(),today.getDate());monday.setDate(monday.getDate()-(monday.getDay()+6)%7);
   var weekdays=["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"];
   for(var day=0;day<7;day++){var bucketDate=new Date(monday);bucketDate.setDate(bucketDate.getDate()+day);buckets.push({label:weekdays[day],date:localDateString(bucketDate),amount:0})}
-  sales.forEach(function(sale){var bucket=buckets.filter(function(item){return item.date===sale.date.slice(0,10)})[0];if(bucket)bucket.amount+=sale.amount});
+  sales.forEach(function(sale){var bucket=buckets.filter(function(item){return item.date===localDateString(new Date(sale.date))})[0];if(bucket)bucket.amount+=sale.amount});
  }else{
   title="Vendas por dia · este mês";
   var year=today.getFullYear(),month=today.getMonth(),daysInMonth=new Date(year,month+1,0).getDate();
   for(var date=1;date<=daysInMonth;date++)buckets.push({label:String(date),date:year+"-"+String(month+1).padStart(2,"0")+"-"+String(date).padStart(2,"0"),amount:0});
-  sales.forEach(function(sale){var bucket=buckets.filter(function(item){return item.date===sale.date.slice(0,10)})[0];if(bucket)bucket.amount+=sale.amount});
+  sales.forEach(function(sale){var bucket=buckets.filter(function(item){return item.date===localDateString(new Date(sale.date))})[0];if(bucket)bucket.amount+=sale.amount});
  }
  $("chart-title").textContent=title;
  var peak=Math.max.apply(null,buckets.map(function(bucket){return bucket.amount}).concat([0]));
@@ -72,15 +92,41 @@ function drawSales(){
  var recent=readSales().sort(function(a,b){return b.date.localeCompare(a.date)||b.id.localeCompare(a.id)}).slice(0,10);
  $("sales-list").innerHTML=recent.length?recent.map(function(sale){
   var date=new Date(sale.date);
-  return '<div class="sale-row"><div><b>Venda registrada</b><small>'+date.toLocaleDateString("pt-BR")+" às "+date.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})+'</small></div><span class="sale-value">'+money(sale.amount)+'</span></div>';
+  var source=sale.source==="online"?"Pagamento online aprovado":sale.source==="legacy"?"Venda manual (histórico deste navegador)":"Venda manual";
+  var note=sale.note?'<small>'+escapeHtml(sale.note)+'</small>':"";
+  return '<div class="sale-row"><div><b>'+source+'</b><small>'+date.toLocaleDateString("pt-BR")+" às "+date.toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"})+'</small>'+note+'</div><span class="sale-value">'+money(sale.amount)+'</span></div>';
  }).join(""):'<p class="message">Nenhuma venda registrada ainda.</p>';
 }
 function escapeHtml(value){return String(value).replace(/[&<>"']/g,function(char){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]})}
+async function loadSales(){
+ var response=await fetch("/api/dashboard/sales",{cache:"no-store",credentials:"same-origin"});
+ var result=await response.json();
+ if(response.status===401){setDashboardAccess(false);$("dashboard-login-message").textContent="Sua sessão expirou. Entre novamente.";return}
+ if(!response.ok)throw new Error(typeof result.error==="string"?result.error:"Não foi possível carregar as vendas.");
+ if(!Array.isArray(result.sales))throw new Error("O servidor retornou uma lista de vendas inválida.");
+ salesRecords=result.sales.filter(function(sale){
+  return sale&&typeof sale.id==="string"&&Number.isInteger(sale.amountCents)&&sale.amountCents>0&&typeof sale.occurredAt==="string"&&Number.isFinite(Date.parse(sale.occurredAt));
+ }).map(function(sale){
+  return {id:sale.id,amount:sale.amountCents/100,date:sale.occurredAt,source:sale.source,note:typeof sale.note==="string"?sale.note:""};
+ });
+ drawSales();
+ $("sales-message").textContent=Array.isArray(result.warnings)&&result.warnings.length?result.warnings.join(" "):"Total do período selecionado, somando pagamentos online aprovados e vendas manuais.";
+}
 function setDashboardAccess(authenticated){
  $("dashboard-login").hidden=authenticated;
  $("dashboard-content").hidden=!authenticated;
- if(authenticated){loadOrders();loadSharedInventory()}
- else sharedInventoryReady=false;
+ if(authenticated){
+  loadOrders();loadSharedInventory();
+  loadSales().catch(function(error){$("sales-message").textContent="Não foi possível carregar as vendas: "+error.message});
+  if(!ordersRefreshTimer)ordersRefreshTimer=window.setInterval(function(){
+   loadOrders();
+   loadSales().catch(function(error){$("sales-message").textContent="Não foi possível atualizar as vendas: "+error.message});
+  },15000);
+ }else{
+  sharedInventoryReady=false;salesRecords=[];
+  drawSales();
+  if(ordersRefreshTimer){window.clearInterval(ordersRefreshTimer);ordersRefreshTimer=null}
+ }
 }
 async function loadSharedInventory(){
  var message=$("message");
@@ -94,7 +140,7 @@ async function loadSharedInventory(){
   if(!Array.isArray(result.inventory))throw new Error("O servidor retornou um estoque inválido.");
   sharedInventory={};
   result.inventory.forEach(function(item){
-   if(item&&typeof item.id==="string")sharedInventory[item.id]={stock:item.stock,flavors:Array.isArray(item.flavors)?item.flavors:[]};
+   if(item&&typeof item.id==="string")sharedInventory[item.id]={stock:item.stock,flavors:Array.isArray(item.flavors)?item.flavors:[],flavor_stock:item.flavor_stock&&typeof item.flavor_stock==="object"?item.flavor_stock:{}};
   });
   sharedInventoryReady=true;
   render();
@@ -115,7 +161,14 @@ async function loadOrders(){
   if(!Array.isArray(result.orders))throw new Error("O servidor retornou uma lista de pedidos inválida.");
   var statusNames={awaiting_payment:"Aguardando pagamento",creating:"Iniciando pagamento",pending:"Pagamento pendente",approved:"Pago",rejected:"Recusado",cancelled:"Cancelado",error:"Erro no pagamento",unknown:"Status não confirmado"};
   var zoneNames={promorar_bela_vista:"Promorar ou Bela Vista",santa_helena:"Santa Helena",cidade_alta:"Cidade Alta",centro_proximos:"Centro",other:"Demais bairros"};
-  list.innerHTML=result.orders.length?result.orders.map(function(order){
+  var visibleOrders=result.orders.filter(function(order){
+   if(order.status==="approved")return true;
+   if(order.status!=="awaiting_payment"&&order.status!=="creating"&&order.status!=="pending")return false;
+   var createdAt=Date.parse(order.created_at||"");
+   var age=Date.now()-createdAt;
+   return Number.isFinite(createdAt)&&age>=0&&age<5*60*1000;
+  });
+  list.innerHTML=visibleOrders.length?visibleOrders.map(function(order){
    var items=Array.isArray(order.items)?order.items:[];
    var itemMarkup=items.map(function(item){
     var title=escapeHtml(item&&item.title||"Item");
@@ -133,7 +186,7 @@ async function loadOrders(){
    var paymentRef=order.payment_id?'<small>Pagamento MP: '+escapeHtml(order.payment_id)+'</small>':'';
    return '<article class="order-card"><div class="order-top"><div><b>Pedido '+escapeHtml(String(order.external_reference||"").slice(0,8))+'</b><small>'+escapeHtml(date)+'</small></div><span class="order-status">'+status+'</span></div><p class="order-contact"><strong>'+escapeHtml(order.customer_name||"Cliente")+'</strong> · '+escapeHtml(order.customer_phone||"Sem telefone")+'</p>'+email+'<p class="order-fulfillment">'+fulfillment+'</p>'+address+'<ul class="order-items">'+itemMarkup+'</ul><div class="order-total"><span>Total</span><strong>'+money((order.amount_cents||0)/100)+'</strong></div>'+paymentRef+(order.status_detail?'<small class="order-detail">'+escapeHtml(order.status_detail)+'</small>':'')+'</article>';
   }).join(""):'<p class="message">Nenhum pedido online registrado ainda.</p>';
-  message.textContent="Mostrando "+result.orders.length+" pedido(s) recentes.";
+  message.textContent="Mostrando "+visibleOrders.length+" pedido(s): aprovados e pendentes há menos de 5 minutos.";
  }catch(error){
   message.textContent="Não foi possível carregar pedidos: "+error.message;
  }
@@ -184,6 +237,40 @@ function categoryOptions(selected){
 function readInventory(){
  return sharedInventoryReady?sharedInventory:{};
 }
+function inventoryItemFromFlavorForm(form,id,addedFlavor,addedQuantity){
+ var flavors=[],flavorStock={};
+ form.querySelectorAll(".flavor-stock-input").forEach(function(input){
+  var flavor=input.getAttribute("data-flavor"),quantityText=input.value,quantity=Number(quantityText);
+  if(!flavor||!/^\d+$/.test(quantityText)||!Number.isSafeInteger(quantity)||quantity<0)throw new Error("Informe um estoque inteiro igual ou maior que zero para cada sabor.");
+  if(flavors.some(function(existing){return existing.toLocaleLowerCase()===flavor.toLocaleLowerCase()}))throw new Error("Há sabores repetidos no estoque.");
+  flavors.push(flavor);flavorStock[flavor]=quantity;
+ });
+ if(addedFlavor){
+  if(flavors.some(function(existing){return existing.toLocaleLowerCase()===addedFlavor.toLocaleLowerCase()}))throw new Error("Esse sabor já está cadastrado. Edite a quantidade na lista de sabores.");
+  flavors.push(addedFlavor);flavorStock[addedFlavor]=addedQuantity;
+ }
+ if(flavors.length>50)throw new Error("Cadastre no máximo 50 sabores por produto.");
+ var stock=flavors.reduce(function(total,flavor){return total+flavorStock[flavor]},0);
+ if(!Number.isSafeInteger(stock)||stock>2147483647)throw new Error("A soma do estoque dos sabores é grande demais.");
+ return {id:id,stock:stock,flavors:flavors,flavorStock:flavorStock};
+}
+async function saveInventoryItem(item){
+ var response=await fetch("/api/dashboard/inventory",{
+  method:"PUT",credentials:"same-origin",headers:{"Content-Type":"application/json"},
+  body:JSON.stringify({items:[item]})
+ });
+ var result=await response.json();
+ if(response.status===401){setDashboardAccess(false);throw new Error("Sua sessão expirou. Entre novamente no dashboard.")}
+ if(!response.ok)throw new Error(typeof result.error==="string"?result.error:"Não foi possível salvar o estoque.");
+ if(!Array.isArray(result.inventory)||!result.inventory.length)throw new Error("O servidor não confirmou a atualização do estoque.");
+ result.inventory.forEach(function(saved){
+  if(saved&&typeof saved.id==="string")sharedInventory[saved.id]={
+   stock:saved.stock,
+   flavors:Array.isArray(saved.flavors)?saved.flavors:[],
+   flavor_stock:saved.flavor_stock&&typeof saved.flavor_stock==="object"?saved.flavor_stock:{}
+  };
+ });
+}
 function render(){
  var inventory,catalog;
  try{inventory=readInventory();catalog=readCatalog()}
@@ -194,12 +281,21 @@ function render(){
   return '<article class="category-row"><form data-category-save="'+escapeHtml(category.id)+'"><label>Nome<input name="name" maxlength="40" value="'+escapeHtml(category.name)+'" required></label><label>Descrição<input name="description" maxlength="100" value="'+escapeHtml(category.description)+'"></label><div class="category-row-actions"><button class="secondary" type="submit">Salvar categoria</button><button class="secondary danger" type="button" data-category-delete="'+escapeHtml(category.id)+'">Excluir categoria</button></div></form></article>';
  }).join("");
  $("products").innerHTML=products.map(function(product){
-  var current=inventory[product.id]||{stock:null,flavors:[]};
+  var current=inventory[product.id]||{stock:null,flavors:[],flavor_stock:{}};
   var flavors=Array.isArray(current.flavors)?current.flavors:[];
+  var flavorStock=current.flavor_stock&&typeof current.flavor_stock==="object"?current.flavor_stock:{};
+  var isEssence=product.c==="essencias";
+  var totalFlavorStock=flavors.reduce(function(total,flavor){return total+(Number.isInteger(flavorStock[flavor])?flavorStock[flavor]:0)},0);
   var image=product.img||"",imageSource=image.indexOf("data:image/")===0||image.indexOf("https://")===0||image.indexOf("http://")===0?image:"/"+image;
   var imagePreview=image?'<img src="'+escapeHtml(imageSource)+'" alt="">':"";
   var deleteButton=product.id==="bass"||product.id==="alu"?"":'<button class="secondary danger" type="button" data-product-delete="'+escapeHtml(product.id)+'">Excluir produto</button>';
-  return '<article class="product" data-product="'+escapeHtml(product.id)+'"><h2>'+escapeHtml(product.n)+'</h2><form class="product-editor" data-product-save="'+escapeHtml(product.id)+'"><div class="product-editor-grid"><label>Nome<input name="name" maxlength="80" value="'+escapeHtml(product.n)+'" required></label><label>Marca<input name="brand" maxlength="50" value="'+escapeHtml(product.brand)+'" required></label><label>Categoria<select name="category">'+categoryOptions(product.c)+'</select></label><label>Preço (R$)<input name="price" type="number" min="0.01" step="0.01" value="'+product.p+'" required></label><label class="wide-field">Descrição<input name="description" maxlength="180" value="'+escapeHtml(product.d)+'" required></label><label class="wide-field">Trocar imagem<input name="image" type="file" accept="image/png,image/jpeg,image/webp"><small>Imagem atual: '+(product.img?"configurada":"nenhuma")+'. Selecione um arquivo para substituir.</small></label></div><div class="product-preview">'+imagePreview+'<span>Prévia da imagem do produto</span></div><div class="product-actions"><button class="secondary" type="submit">Salvar produto</button>'+deleteButton+'</div></form><form class="product-form" data-save="'+escapeHtml(product.id)+'"><label>Estoque<input class="stock" type="number" min="0" step="1" inputmode="numeric" value="'+(Number.isInteger(current.stock)?current.stock:"")+'" placeholder="Não informado" '+(sharedInventoryReady?"":"disabled")+'></label><label>Sabores<input class="flavors" type="text" value="'+escapeHtml(flavors.join(", "))+'" placeholder="Ex.: menta, uva" '+(sharedInventoryReady?"":"disabled")+'></label><button class="secondary" type="submit" '+(sharedInventoryReady?"":"disabled")+'>Salvar estoque e sabores online</button></form></article>';
+  var stockField=isEssence
+   ?'<label>Estoque total (calculado)<input class="stock" type="number" value="'+totalFlavorStock+'" readonly><small>O total é a soma das quantidades por sabor.</small></label>'
+   :'<label>Estoque<input class="stock" type="number" min="0" step="1" inputmode="numeric" value="'+(Number.isInteger(current.stock)?current.stock:"")+'" placeholder="Não informado" '+(sharedInventoryReady?"":"disabled")+'></label>';
+  var flavorField=isEssence
+   ?'<div class="flavor-manager wide-field"><div class="flavor-stock-list">'+(flavors.length?flavors.map(function(flavor){return '<label class="flavor-stock-row"><span>'+escapeHtml(flavor)+'</span><input class="flavor-stock-input" data-flavor="'+escapeHtml(flavor)+'" type="number" min="0" step="1" inputmode="numeric" value="'+(Number.isInteger(flavorStock[flavor])?flavorStock[flavor]:0)+'" aria-label="Estoque de '+escapeHtml(flavor)+'" '+(sharedInventoryReady?"":"disabled")+'></label>'}).join(""):'<p class="flavor-empty">Nenhum sabor cadastrado ainda.</p>')+'</div><div class="flavor-add-row"><label>Novo sabor<input class="new-flavor-name" maxlength="50" placeholder="Ex.: Fresh Lemon" '+(sharedInventoryReady?"":"disabled")+'></label><label>Quantidade<input class="new-flavor-quantity" type="number" min="0" step="1" inputmode="numeric" placeholder="Ex.: 5" '+(sharedInventoryReady?"":"disabled")+'></label><button class="secondary" type="button" data-flavor-add '+(sharedInventoryReady?"":"disabled")+'>Adicionar sabor</button></div><small>Os sabores já cadastrados ficam salvos. Adicione um sabor novo sem apagar os anteriores.</small></div>'
+   :'<input class="flavors" type="hidden" value="">';
+  return '<article class="product" data-product="'+escapeHtml(product.id)+'"><h2>'+escapeHtml(product.n)+'</h2><form class="product-editor" data-product-save="'+escapeHtml(product.id)+'"><div class="product-editor-grid"><label>Nome<input name="name" maxlength="80" value="'+escapeHtml(product.n)+'" required></label><label>Marca<input name="brand" maxlength="50" value="'+escapeHtml(product.brand)+'" required></label><label>Categoria<select name="category">'+categoryOptions(product.c)+'</select></label><label>Preço (R$)<input name="price" type="number" min="0.01" step="0.01" value="'+product.p+'" required></label><label class="wide-field">Descrição<input name="description" maxlength="180" value="'+escapeHtml(product.d)+'" required></label><label class="wide-field">Trocar imagem<input name="image" type="file" accept="image/png,image/jpeg,image/webp"><small>Imagem atual: '+(product.img?"configurada":"nenhuma")+'. Selecione um arquivo para substituir.</small></label></div><div class="product-preview">'+imagePreview+'<span>Prévia da imagem do produto</span></div><div class="product-actions"><button class="secondary" type="submit">Salvar produto</button>'+deleteButton+'</div></form><form class="product-form" data-save="'+escapeHtml(product.id)+'">'+stockField+flavorField+'<button class="secondary" type="submit" '+(sharedInventoryReady?"":"disabled")+'>Salvar estoque online</button></form></article>';
  }).join("");
 }
 $("categories").addEventListener("submit",function(event){
@@ -296,7 +392,16 @@ $("products").addEventListener("submit",async function(event){
  var id=form.getAttribute("data-save");
  var stockText=form.querySelector(".stock").value;
  var stock=stockText===""?null:Number(stockText);
- var flavors=form.querySelector(".flavors").value.split(",").map(function(flavor){return flavor.trim()}).filter(function(flavor,index,list){return flavor&&list.indexOf(flavor)===index});
+ var product=products.filter(function(item){return item.id===id})[0];
+ if(!product){$("message").textContent="O produto não foi encontrado.";return}
+ var inventoryItem;
+ if(product.c==="essencias"){
+  try{
+   inventoryItem=inventoryItemFromFlavorForm(form,id);
+  }catch(error){$("message").textContent=error.message;return}
+ }else{
+  inventoryItem={id:id,stock:stock,flavors:[],flavorStock:{}};
+ }
  if(stock!==null&&(!Number.isInteger(stock)||stock<0)){
   $("message").textContent="Informe um estoque inteiro igual ou maior que zero.";
   return;
@@ -307,25 +412,38 @@ $("products").addEventListener("submit",async function(event){
  $("message").textContent="Salvando estoque e sabores para a loja...";
  try{
   products=readCatalog().products;
-  var response=await fetch("/api/dashboard/inventory",{
-   method:"PUT",
-   credentials:"same-origin",
-   headers:{"Content-Type":"application/json"},
-   body:JSON.stringify({items:[{id:id,stock:stock,flavors:flavors}]})
-  });
-  var result=await response.json();
-  if(response.status===401){setDashboardAccess(false);throw new Error("Sua sessão expirou. Entre novamente no dashboard.")}
-  if(!response.ok)throw new Error(typeof result.error==="string"?result.error:"Não foi possível salvar o estoque.");
-  if(!Array.isArray(result.inventory)||!result.inventory.length)throw new Error("O servidor não confirmou a atualização do estoque.");
-  result.inventory.forEach(function(item){
-   if(item&&typeof item.id==="string")sharedInventory[item.id]={stock:item.stock,flavors:Array.isArray(item.flavors)?item.flavors:[]};
-  });
+  if(product.c!=="essencias")inventoryItem.stock=stock;
+  await saveInventoryItem(inventoryItem);
   render();
-  $("message").textContent="Estoque e sabores salvos online. Já estão disponíveis na loja; atualize a página da loja para conferir.";
+  $("message").textContent=product.c==="essencias"?"Quantidades dos sabores atualizadas sem remover nenhum sabor.":"Estoque salvo online. Já está disponível na loja.";
  }catch(error){$("message").textContent="Não foi possível salvar o estoque compartilhado: "+error.message}
  finally{submitButton.disabled=!sharedInventoryReady}
 });
-$("products").addEventListener("click",function(event){
+$("products").addEventListener("click",async function(event){
+ var addFlavorButton=event.target.closest("[data-flavor-add]");
+ if(addFlavorButton){
+  var flavorForm=addFlavorButton.closest("[data-save]");
+  var flavorName=flavorForm.querySelector(".new-flavor-name").value.trim();
+  var quantityText=flavorForm.querySelector(".new-flavor-quantity").value;
+  var quantity=Number(quantityText),productId=flavorForm.getAttribute("data-save");
+  if(!flavorName||flavorName.length>50||!/^\d+$/.test(quantityText)||!Number.isSafeInteger(quantity)||quantity<0){
+   $("message").textContent="Informe o nome do sabor e uma quantidade inteira igual ou maior que zero.";
+   return;
+  }
+  if(!sharedInventoryReady){$("message").textContent="O estoque compartilhado ainda não carregou. Atualize o dashboard e tente novamente.";return}
+  addFlavorButton.disabled=true;
+  $("message").textContent="Salvando o novo sabor...";
+  try{
+   var item=inventoryItemFromFlavorForm(flavorForm,productId,flavorName,quantity);
+   await saveInventoryItem(item);
+   render();
+   $("message").textContent='Sabor "'+flavorName+'" salvo. Os sabores anteriores foram mantidos.';
+  }catch(error){
+   $("message").textContent="Não foi possível adicionar o sabor: "+error.message;
+   addFlavorButton.disabled=false;
+  }
+  return;
+ }
  var button=event.target.closest("[data-product-delete]");
  if(!button)return;
  var id=button.getAttribute("data-product-delete");
@@ -335,6 +453,17 @@ $("products").addEventListener("click",function(event){
   localStorage.setItem(CATALOG_STORAGE_KEY,JSON.stringify(catalog));
   products=catalog.products;categories=catalog.categories;render();$("message").textContent="Produto removido da loja.";
  }catch(error){$("message").textContent="Não foi possível excluir o produto: "+error.message}
+});
+$("products").addEventListener("input",function(event){
+ var input=event.target.closest(".flavor-stock-input");
+ if(!input)return;
+ var form=input.closest("[data-save]"),total=0,valid=true;
+ form.querySelectorAll(".flavor-stock-input").forEach(function(field){
+  if(!/^\d+$/.test(field.value)||!Number.isSafeInteger(Number(field.value))){valid=false;return}
+  total+=Number(field.value);
+ });
+ var totalInput=form.querySelector(".stock");
+ if(totalInput)totalInput.value=valid?String(total):"";
 });
 window.addEventListener("storage",function(event){if(event.key===CATALOG_STORAGE_KEY)render()});
 document.querySelectorAll("[data-period]").forEach(function(button){
@@ -348,20 +477,26 @@ $("sale-date").value=localDateString(new Date());
 $("sale-form").addEventListener("submit",function(event){
  event.preventDefault();
  var amount=Number($("sale-amount").value),date=$("sale-date").value;
- if(!Number.isFinite(amount)||amount<=0||!date){$("message").textContent="Informe um valor válido e a data da venda.";return}
- var sales;
- try{sales=readSales()}
- catch(error){$("message").textContent="Não foi possível ler os registros de venda: "+error.message;return}
- var now=new Date(),dateTime=date+"T"+String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0")+":"+String(now.getSeconds()).padStart(2,"0");
- sales.push({id:Date.now().toString(36)+Math.random().toString(36).slice(2,8),amount:amount,date:dateTime});
- try{
-  localStorage.setItem(SALES_STORAGE_KEY,JSON.stringify(sales));
+ if(!Number.isFinite(amount)||amount<=0||!date){$("sales-message").textContent="Informe um valor válido e a data da venda.";return}
+ var now=new Date(),time=String(now.getHours()).padStart(2,"0")+":"+String(now.getMinutes()).padStart(2,"0")+":"+String(now.getSeconds()).padStart(2,"0");
+ var occurredAt=new Date(date+"T"+time);
+ if(!Number.isFinite(occurredAt.getTime())){$("sales-message").textContent="Informe uma data válida para a venda.";return}
+ var button=this.querySelector("button[type=submit]");
+ button.disabled=true;$("sales-message").textContent="Registrando venda no servidor...";
+ fetch("/api/dashboard/sales",{
+  method:"POST",credentials:"same-origin",headers:{"Content-Type":"application/json"},
+  body:JSON.stringify({amountCents:Math.round(amount*100),occurredAt:occurredAt.toISOString(),note:""})
+ }).then(async function(response){
+  var result=await response.json();
+  if(response.status===401){setDashboardAccess(false);throw new Error("Sua sessão expirou. Entre novamente no dashboard.")}
+  if(!response.ok)throw new Error(typeof result.error==="string"?result.error:"Não foi possível registrar a venda.");
   $("sale-amount").value="";
-  $("message").textContent="Venda registrada neste navegador. O registro é manual e não confirma o pagamento.";
-  drawSales();
- }catch(error){$("message").textContent="Não foi possível salvar a venda neste navegador: "+error.message}
+ $("sales-message").textContent="Venda manual registrada online.";
+ try{await loadSales()}
+ catch(error){$("sales-message").textContent="A venda foi registrada, mas não foi possível atualizar o resumo: "+error.message}
+ }).catch(function(error){$("sales-message").textContent="Não foi possível registrar a venda: "+error.message})
+  .finally(function(){button.disabled=false});
 });
-window.addEventListener("storage",function(event){if(event.key===SALES_STORAGE_KEY)drawSales()});
 $("dashboard-login-form").addEventListener("submit",async function(event){
  event.preventDefault();
  var button=this.querySelector("button[type=submit]"),message=$("dashboard-login-message");

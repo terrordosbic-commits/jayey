@@ -16,15 +16,6 @@
  <div id="dashboard-content" hidden>
  <h1>Dashboard da loja</h1>
  <p class="intro">Acompanhe as vendas e gerencie o estoque da Jay Ey.</p>
- <h2 class="section-title">Música da loja</h2>
- <p class="section-note">Troque a música que toca na loja sem publicar o site novamente. MP3, M4A, OGG, WAV ou WebM; até 5 MB.</p>
- <section class="panel" aria-label="Música da loja">
-  <form id="music-form" class="music-form">
-   <label>Arquivo de áudio<input id="music-file" type="file" accept="audio/mpeg,audio/mp4,audio/ogg,audio/wav,audio/webm" required></label>
-   <button class="primary" type="submit">Trocar música</button>
-  </form>
-  <p class="message" id="music-message" role="status">A nova música ficará disponível para todos após o envio.</p>
- </section>
  <div class="session">
   <span class="message" id="orders-message" role="status">Carregando pedidos...</span>
   <button class="secondary" id="dashboard-logout" type="button">Sair do dashboard</button>
@@ -35,19 +26,21 @@
   <div class="orders-list" id="orders-list"></div>
  </section>
  <h2 class="section-title">Vendas</h2>
- <p class="section-note">Registro manual por enquanto. As vendas não são importadas automaticamente do WhatsApp nem confirmadas por pagamento.</p>
+ <p class="section-note">O total soma todos os pagamentos online aprovados pelo Mercado Pago e as vendas manuais registradas no dashboard. Os botões de período filtram os números e o gráfico.</p>
  <section class="panel" aria-label="Resumo de vendas">
   <div class="periods" role="group" aria-label="Período das vendas">
-   <button class="period" type="button" data-period="day" aria-pressed="true">Hoje</button>
+   <button class="period" type="button" data-period="all" aria-pressed="true">Todo o período</button>
+   <button class="period" type="button" data-period="day" aria-pressed="false">Hoje</button>
    <button class="period" type="button" data-period="week" aria-pressed="false">Esta semana</button>
    <button class="period" type="button" data-period="month" aria-pressed="false">Este mês</button>
   </div>
   <div class="metrics">
-   <div class="metric"><span>Faturamento registrado</span><strong id="sales-total">R$ 0,00</strong></div>
+   <div class="metric"><span>Faturamento no período</span><strong id="sales-total">R$ 0,00</strong></div>
    <div class="metric"><span>Vendas registradas</span><strong id="sales-count">0</strong></div>
    <div class="metric"><span>Valor médio</span><strong id="sales-average">R$ 0,00</strong></div>
   </div>
-  <h3 class="chart-title" id="chart-title">Vendas por hora · hoje</h3>
+  <p class="message" id="sales-message" role="status">Carregando vendas aprovadas e vendas manuais...</p>
+  <h3 class="chart-title" id="chart-title">Vendas por mês · todo o período</h3>
   <div class="chart-scroll"><div class="chart" id="sales-chart" aria-label="Gráfico de vendas"></div></div>
   <h3 class="chart-title">Registrar venda</h3>
   <form class="sale-form" id="sale-form">
@@ -69,7 +62,7 @@
   <div id="categories" class="categories"></div>
  </section>
  <h2 class="section-title">Produtos</h2>
- <p class="section-note">O estoque e os sabores são salvos online e aparecem na loja sem novo deploy. Alterações no catálogo e nas imagens continuam neste navegador.</p>
+ <p class="section-note">Estoque e quantidades de cada sabor são salvos online. Alterações no catálogo e nas imagens continuam neste navegador.</p>
  <section class="panel">
   <form class="new-product-form" id="new-product-form">
    <label>Nome do produto<input name="name" maxlength="80" required></label>
@@ -82,6 +75,15 @@
   </form>
   <p class="message" id="message" role="status">Carregando as configurações compartilhadas da loja...</p>
   <div class="products" id="products"></div>
+ </section>
+ <h2 class="section-title">Música da loja</h2>
+ <p class="section-note">Troque a música que toca na loja sem publicar o site novamente. MP3, M4A, OGG, WAV ou WebM; até 5 MB.</p>
+ <section class="panel" aria-label="Música da loja">
+  <form id="music-form" class="music-form">
+   <label>Arquivo de áudio<input id="music-file" type="file" accept="audio/mpeg,audio/mp4,audio/ogg,audio/wav,audio/webm" required></label>
+   <button class="primary" type="submit">Trocar música</button>
+  </form>
+  <p class="message" id="music-message" role="status">A nova música ficará disponível para todos após o envio.</p>
  </section>
  </div>
 </div>

@@ -207,6 +207,73 @@ export async function listRecentOrders() {
   return supabaseRequest<OrderRecord[]>(`orders?${query.toString()}`, { method: "GET" });
 }
 
+export async function listApprovedSales() {
+  const query = new URLSearchParams({
+    select: "id,amount_cents,created_at",
+    status: "eq.approved",
+    order: "created_at.desc",
+  });
+  return listAllRows<{ id: string; amount_cents: number; created_at: string }>(
+    `orders?${query.toString()}`,
+  );
+}
+
+export async function listManualSales() {
+  const query = new URLSearchParams({
+    select: "id,amount_cents,note,occurred_at",
+    order: "occurred_at.desc",
+  });
+  try {
+    return await listAllRows<{
+      id: string;
+      amount_cents: number;
+      note: string;
+      occurred_at: string;
+    }>(`manual_sales?${query.toString()}`);
+  } catch (error) {
+    throw new Error(
+      "Não foi possível consultar as vendas manuais. Execute supabase-setup.sql no Supabase e tente novamente.",
+      { cause: error },
+    );
+  }
+}
+
+async function listAllRows<T>(path: string) {
+  const pageSize = 1000;
+  const rows: T[] = [];
+  for (let offset = 0; ; offset += pageSize) {
+    const page = await supabaseRequest<T[]>(path, {
+      method: "GET",
+      headers: { Range: `${offset}-${offset + pageSize - 1}` },
+    });
+    rows.push(...page);
+    if (page.length < pageSize) return rows;
+  }
+}
+
+export async function createManualSale(input: {
+  amountCents: number;
+  note: string;
+  occurredAt: string;
+}) {
+  try {
+    return await supabaseRequest<Array<{ id: string }>>("manual_sales", {
+      method: "POST",
+      headers: { Prefer: "return=representation" },
+      body: JSON.stringify({
+        amount_cents: input.amountCents,
+        note: input.note,
+        occurred_at: input.occurredAt,
+      }),
+    });
+  } catch (error) {
+    throw new Error(
+      "Não foi possível registrar a venda manual. Execute supabase-setup.sql no Supabase e tente novamente.",
+      { cause: error },
+    );
+  }
+}
+
 export async function updateOrder(
   externalReference: string,
   update: OrderUpdate,

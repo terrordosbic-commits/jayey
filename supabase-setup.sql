@@ -2,7 +2,19 @@ create table if not exists public.inventory (
   id text primary key,
   stock integer,
   flavors text[] not null default '{}',
+  flavor_stock jsonb not null default '{}'::jsonb,
   constraint inventory_stock_nonnegative check (stock is null or stock >= 0)
+);
+
+alter table public.inventory
+  add column if not exists flavor_stock jsonb not null default '{}'::jsonb;
+
+create table if not exists public.manual_sales (
+  id uuid primary key default gen_random_uuid(),
+  amount_cents integer not null check (amount_cents > 0),
+  note text not null default '',
+  occurred_at timestamptz not null default now(),
+  created_at timestamptz not null default now()
 );
 
 create table if not exists public.inventory_admins (
@@ -11,6 +23,7 @@ create table if not exists public.inventory_admins (
 
 alter table public.inventory enable row level security;
 alter table public.inventory_admins enable row level security;
+alter table public.manual_sales enable row level security;
 
 drop policy if exists inventory_admins_read_self on public.inventory_admins;
 create policy inventory_admins_read_self
@@ -57,6 +70,8 @@ grant select on public.inventory to anon, authenticated;
 grant insert, update on public.inventory to authenticated;
 grant select, insert, update on public.inventory to service_role;
 grant select on public.inventory_admins to authenticated;
+revoke all on public.manual_sales from anon, authenticated;
+grant select, insert on public.manual_sales to service_role;
 
 insert into public.inventory (id, stock, flavors)
 values

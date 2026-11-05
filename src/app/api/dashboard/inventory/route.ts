@@ -5,6 +5,7 @@ type InventoryItem = {
   id: string;
   stock: number | null;
   flavors: string[];
+  flavor_stock: Record<string, number>;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -96,7 +97,8 @@ function parseInventoryItems(value: unknown): InventoryItem[] | null {
           !Number.isInteger(candidate.stock) ||
           candidate.stock < 0)) ||
       !Array.isArray(candidate.flavors) ||
-      candidate.flavors.length > 50
+      candidate.flavors.length > 50 ||
+      !isRecord(candidate.flavorStock)
     ) {
       return null;
     }
@@ -108,11 +110,31 @@ function parseInventoryItems(value: unknown): InventoryItem[] | null {
       const normalizedFlavor = flavor.trim();
       if (!flavors.includes(normalizedFlavor)) flavors.push(normalizedFlavor);
     }
+    const flavorStock: Record<string, number> = {};
+    for (const [flavor, quantity] of Object.entries(candidate.flavorStock)) {
+      if (
+        !flavors.includes(flavor) ||
+        typeof quantity !== "number" ||
+        !Number.isInteger(quantity) ||
+        quantity < 0
+      ) {
+        return null;
+      }
+      flavorStock[flavor] = quantity;
+    }
+    if (
+      flavors.some(
+        (flavor) => !Object.prototype.hasOwnProperty.call(flavorStock, flavor),
+      )
+    ) {
+      return null;
+    }
     seen.add(candidate.id);
     items.push({
       id: candidate.id,
       stock: candidate.stock,
       flavors,
+      flavor_stock: flavorStock,
     });
   }
   return items;
@@ -125,7 +147,7 @@ export async function GET(request: Request) {
 
   try {
     const rows = await supabaseRequest<InventoryItem[]>(
-      "inventory?select=id,stock,flavors&order=id.asc",
+      "inventory?select=id,stock,flavors,flavor_stock&order=id.asc",
     );
     if (!Array.isArray(rows)) {
       throw new Error("O banco retornou uma lista de estoque inválida.");
