@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   calculateCheckoutQuote,
+  getDeliveryNeighborhood,
   getDeliveryFeeCents,
   parseJsonBody,
   type DeliveryZone,
@@ -9,14 +10,6 @@ import { createOrGetOrder, orderItemsMatch } from "@/lib/supabase-admin";
 
 const uuidV4 =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const deliveryZones = new Set<DeliveryZone>([
-  "promorar_bela_vista",
-  "santa_helena",
-  "cidade_alta",
-  "centro_proximos",
-  "other",
-]);
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
@@ -76,10 +69,10 @@ export async function POST(request: Request) {
       typeof delivery.number === "string" ? delivery.number.trim() : "";
     deliveryNeighborhood =
       typeof delivery.neighborhood === "string" ? delivery.neighborhood.trim() : "";
-    const zone = delivery.zone;
+    const neighborhoodInfo = getDeliveryNeighborhood(deliveryNeighborhood);
     if (
-      typeof zone !== "string" ||
-      !deliveryZones.has(zone as DeliveryZone) ||
+      !neighborhoodInfo ||
+      delivery.zone !== neighborhoodInfo.zone ||
       deliveryStreet.length < 2 ||
       deliveryStreet.length > 160 ||
       deliveryNumber.length < 1 ||
@@ -92,7 +85,8 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
-    deliveryZone = zone as DeliveryZone;
+    deliveryNeighborhood = neighborhoodInfo.name;
+    deliveryZone = neighborhoodInfo.zone;
     deliveryFeeCents = getDeliveryFeeCents(deliveryZone);
   }
 

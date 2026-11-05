@@ -4,16 +4,17 @@ import { type FormEvent, useCallback, useEffect, useRef, useState } from "react"
 import Image from "next/image";
 import Link from "next/link";
 import styles from "@/app/checkout/checkout.module.css";
+import {
+  DELIVERY_NEIGHBORHOODS,
+  getDeliveryFeeCents,
+  getDeliveryNeighborhood,
+  normalizeNeighborhood,
+  type DeliveryZone,
+} from "@/lib/checkout";
 
 type CartLine = { id: string; quantity: number; flavor?: string };
 type QuoteItem = { id: string; title: string; quantity: number; unitPrice: number };
 type Quote = { items: QuoteItem[]; total: number };
-type DeliveryZone =
-  | "promorar_bela_vista"
-  | "santa_helena"
-  | "cidade_alta"
-  | "centro_proximos"
-  | "other";
 type DeliveryDetails = {
   name: string;
   phone: string;
@@ -21,7 +22,7 @@ type DeliveryDetails = {
   street: string;
   number: string;
   neighborhood: string;
-  zone: DeliveryZone;
+  zone: DeliveryZone | "";
 };
 type CheckoutOrder = {
   orderReference: string;
@@ -88,13 +89,6 @@ declare global {
 
 const CART_STORAGE_KEY = "jayey.checkout.items.v1";
 const STORE_PHONE = "49999726586";
-const DELIVERY_ZONES: Array<{ id: DeliveryZone; title: string; feeCents: number }> = [
-  { id: "promorar_bela_vista", title: "Promorar ou Bela Vista — grátis", feeCents: 0 },
-  { id: "santa_helena", title: "Santa Helena — R$ 7,00", feeCents: 700 },
-  { id: "cidade_alta", title: "Cidade Alta — R$ 8,00", feeCents: 800 },
-  { id: "centro_proximos", title: "Centro — R$ 10,00", feeCents: 1000 },
-  { id: "other", title: "Demais bairros — R$ 16,00", feeCents: 1600 },
-];
 
 function money(value: number) {
   return new Intl.NumberFormat("pt-BR", {
@@ -164,7 +158,7 @@ export default function CheckoutClient({ publicKey }: { publicKey: string }) {
     street: "",
     number: "",
     neighborhood: "",
-    zone: "other",
+    zone: "",
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -461,14 +455,15 @@ export default function CheckoutClient({ publicKey }: { publicKey: string }) {
   async function submitDeliveryDetails(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!fulfillment || savingOrder || checkoutOrder) return;
+    const neighborhoodInfo = getDeliveryNeighborhood(deliveryForm.neighborhood);
     const details = {
       name: deliveryForm.name.trim(),
       phone: deliveryForm.phone.replace(/\D/g, ""),
       email: deliveryForm.email.trim().toLowerCase(),
       street: deliveryForm.street.trim(),
       number: deliveryForm.number.trim(),
-      neighborhood: deliveryForm.neighborhood.trim(),
-      zone: deliveryForm.zone || "other",
+      neighborhood: neighborhoodInfo?.name ?? deliveryForm.neighborhood.trim(),
+      zone: neighborhoodInfo?.zone ?? deliveryForm.zone,
     };
     if (
       details.name.length < 2 ||
@@ -479,7 +474,8 @@ export default function CheckoutClient({ publicKey }: { publicKey: string }) {
       (fulfillment === "delivery" &&
         (details.street.length < 2 ||
           !details.number ||
-          details.neighborhood.length < 2))
+          !neighborhoodInfo ||
+          details.zone !== neighborhoodInfo.zone))
     ) {
       setError(
         fulfillment === "delivery"
@@ -569,7 +565,7 @@ export default function CheckoutClient({ publicKey }: { publicKey: string }) {
       street: "",
       number: "",
       neighborhood: "",
-      zone: "other",
+      zone: "",
     });
   }
 
@@ -583,8 +579,17 @@ export default function CheckoutClient({ publicKey }: { publicKey: string }) {
         : payment
           ? "Aguardando confirmação do Mercado Pago."
           : "";
-  const selectedZoneFee =
-    DELIVERY_ZONES.find((zone) => zone.id === deliveryForm.zone)?.feeCents || 0;
+  const selectedNeighborhood = getDeliveryNeighborhood(deliveryForm.neighborhood);
+  const selectedZoneFee = selectedNeighborhood
+    ? getDeliveryFeeCents(selectedNeighborhood.zone)
+    : 0;
+  const matchingNeighborhoods = deliveryForm.neighborhood.trim() && !selectedNeighborhood
+    ? DELIVERY_NEIGHBORHOODS.filter((neighborhood) =>
+        normalizeNeighborhood(neighborhood.name).includes(
+          normalizeNeighborhood(deliveryForm.neighborhood),
+        ),
+      )
+    : [];
   const deliveryTotal =
     checkoutOrder?.amount ??
     (quote ? quote.total + (fulfillment === "delivery" ? selectedZoneFee / 100 : 0) : 0);
@@ -681,7 +686,7 @@ export default function CheckoutClient({ publicKey }: { publicKey: string }) {
                 : fulfillment === "pickup"
                   ? "Informe nome, e-mail e telefone; depois o pedido será salvo e você seguirá para o pagamento."
                   : fulfillment === "delivery"
-                    ? "Informe nome, e-mail, telefone e endereço; depois o pedido será salvo e você seguirá para o pagamento."
+                    ?                     "Informe nome, e-mail, telefone e endereço; pesquise o bairro para calcular o frete. Depois, o pedido será salvo para o pagamento."
                     : "Escolha retirada no local ou entrega para continuar."}
             </p>
           </div>
@@ -812,44 +817,75 @@ export default function CheckoutClient({ publicKey }: { publicKey: string }) {
                       />
                     </label>
                   </div>
-                  <label>
-                    Bairro
+                  <label className={styles.neighborhoodField}>
+                    Pesquise seu bairro
                     <input
+                      aria-autocomplete="list"
+                      aria-controls="delivery-neighborhood-options"
+                      aria-expanded={matchingNeighborhoods.length > 0}
+                      autoComplete="off"
                       disabled={savingOrder}
-                      autoComplete="address-level3"
                       maxLength={100}
                       name="neighborhood"
                       onChange={(event) => {
-                        idempotencyKeyRef.current = null;
-                        setDeliveryForm({ ...deliveryForm, neighborhood: event.target.value });
-                      }}
-                      required
-                      value={deliveryForm.neighborhood}
-                    />
-                  </label>
-                  <label>
-                    Região da entrega
-                    <select
-                      disabled={savingOrder}
-                      onChange={(event) => {
+                        const value = event.target.value;
+                        const match = getDeliveryNeighborhood(value);
                         idempotencyKeyRef.current = null;
                         setDeliveryForm({
                           ...deliveryForm,
-                          zone: event.target.value as DeliveryZone,
+                          neighborhood: value,
+                          zone: match?.zone ?? "",
                         });
                       }}
-                      value={deliveryForm.zone}
-                    >
-                      {DELIVERY_ZONES.map((zone) => (
-                        <option key={zone.id} value={zone.id}>{zone.title}</option>
-                      ))}
-                    </select>
+                      placeholder="Digite para buscar seu bairro"
+                      required
+                      role="combobox"
+                      value={deliveryForm.neighborhood}
+                    />
+                    {matchingNeighborhoods.length > 0 ? (
+                      <ul
+                        className={styles.neighborhoodOptions}
+                        id="delivery-neighborhood-options"
+                        role="listbox"
+                      >
+                        {matchingNeighborhoods.map((neighborhood) => (
+                          <li key={neighborhood.name}>
+                            <button
+                              aria-selected={false}
+                              className={styles.neighborhoodOption}
+                              onClick={() => {
+                                idempotencyKeyRef.current = null;
+                                setDeliveryForm({
+                                  ...deliveryForm,
+                                  neighborhood: neighborhood.name,
+                                  zone: neighborhood.zone,
+                                });
+                              }}
+                              onMouseDown={(event) => event.preventDefault()}
+                              role="option"
+                              type="button"
+                            >
+                              {neighborhood.name}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : deliveryForm.neighborhood.trim() && !selectedNeighborhood ? (
+                      <span className={styles.neighborhoodHint}>
+                        Nenhum bairro encontrado. Confira a digitação.
+                      </span>
+                    ) : null}
+                    {selectedNeighborhood ? (
+                      <span className={styles.neighborhoodHint}>
+                        Frete para {selectedNeighborhood.name}: {money(selectedZoneFee / 100)}
+                      </span>
+                    ) : null}
                   </label>
                 </>
               ) : null}
               <p className={styles.formNote}>
                 {fulfillment === "delivery"
-                  ? "O endereço e a taxa serão incluídos no pedido."
+                  ? "O frete é calculado automaticamente pelo bairro selecionado."
                   : "Usaremos seu telefone para combinar a retirada."}
               </p>
               <button className={styles.button} type="submit" disabled={savingOrder}>

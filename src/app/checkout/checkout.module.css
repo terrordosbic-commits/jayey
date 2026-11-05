@@ -413,11 +413,58 @@
   background: #0e0b13;
   color: #fff;
   font: inherit;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .deliveryForm select {
   appearance: none;
+}
+
+.neighborhoodField {
+  position: relative;
+}
+
+.neighborhoodOptions {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 4px);
+  right: 0;
+  left: 0;
+  max-height: 240px;
+  margin: 0;
+  padding: 5px;
+  overflow-y: auto;
+  border: 1px solid #493c58;
+  border-radius: 10px;
+  background: #15111b;
+  box-shadow: 0 12px 28px rgb(0 0 0 / 40%);
+  list-style: none;
+}
+
+.neighborhoodOption {
+  width: 100%;
+  padding: 10px 11px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #f7f3ff;
+  font: inherit;
+  font-size: 16px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.neighborhoodOption:hover,
+.neighborhoodOption:focus-visible {
+  outline: none;
+  background: #2a1c39;
+}
+
+.neighborhoodHint {
+  color: #b6a8c7;
+  font-size: 13px;
+  font-weight: 450;
+  line-height: 1.4;
 }
 
 .deliveryForm input:focus,

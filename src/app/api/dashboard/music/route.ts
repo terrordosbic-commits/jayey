@@ -14,6 +14,10 @@ const ALLOWED_AUDIO_TYPES = new Set([
 const STORAGE_BUCKET = "jayey-media";
 const STORAGE_OBJECT = "store/music";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
 export async function POST(request: Request) {
   if (!hasDashboardSession(request)) {
     return NextResponse.json({ error: "Acesso não autorizado." }, { status: 401 });
@@ -83,14 +87,45 @@ export async function POST(request: Request) {
   }
 
   if (!response.ok) {
-    console.error("Supabase music upload failed", { status: response.status });
+    const responseText = await response.text();
+    let storageError: unknown = null;
+    try {
+      storageError = JSON.parse(responseText);
+    } catch {
+      storageError = null;
+    }
+    const storageMessage =
+      isRecord(storageError) && typeof storageError.message === "string"
+        ? storageError.message
+        : isRecord(storageError) && typeof storageError.error === "string"
+          ? storageError.error
+          : "";
+    console.error("Supabase music upload failed", {
+      status: response.status,
+      code:
+        isRecord(storageError) && typeof storageError.error === "string"
+          ? storageError.error
+          : undefined,
+    });
+
+    let error =
+      `Não foi possível salvar a música no Supabase (HTTP ${response.status}).`;
+    if (/mime|content.?type/i.test(storageMessage)) {
+      error =
+        "O Supabase recusou o formato de áudio. Execute novamente o arquivo supabase-music.sql no SQL Editor do projeto Supabase usado pelo site.";
+    } else if (response.status === 400) {
+      error =
+        "O Supabase recusou o arquivo. Verifique se o bucket jayey-media existe e execute novamente supabase-music.sql no SQL Editor do projeto Supabase usado pelo site.";
+    } else if (response.status === 413) {
+      error =
+        "O Supabase recusou o arquivo por exceder o limite permitido. Envie um áudio de até 5 MB.";
+    } else if (response.status === 404) {
+      error =
+        "O espaço de áudio ainda não foi criado. Execute supabase-music.sql no SQL Editor do Supabase e tente novamente.";
+    }
+
     return NextResponse.json(
-      {
-        error:
-          response.status === 404
-            ? "O espaço de áudio ainda não foi criado. Configure o bucket jayey-media no Supabase e tente novamente."
-            : `Não foi possível salvar a música no Supabase (HTTP ${response.status}).`,
-      },
+      { error },
       { status: 502 },
     );
   }

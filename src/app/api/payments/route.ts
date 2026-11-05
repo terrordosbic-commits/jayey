@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   calculateCheckoutQuote,
+  getDeliveryNeighborhood,
   getDeliveryFeeCents,
   getAccessToken,
   parseJsonBody,
@@ -35,14 +36,6 @@ type DeliveryDetails = {
 
 const uuidV4 =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const deliveryZones = new Set<DeliveryZone>([
-  "promorar_bela_vista",
-  "santa_helena",
-  "cidade_alta",
-  "centro_proximos",
-  "other",
-]);
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
@@ -127,9 +120,10 @@ export async function POST(request: Request) {
     deliveryNumber = typeof delivery.number === "string" ? delivery.number.trim() : "";
     deliveryNeighborhood =
       typeof delivery.neighborhood === "string" ? delivery.neighborhood.trim() : "";
+    const neighborhoodInfo = getDeliveryNeighborhood(deliveryNeighborhood);
     if (
-      typeof delivery.zone !== "string" ||
-      !deliveryZones.has(delivery.zone as DeliveryZone) ||
+      !neighborhoodInfo ||
+      delivery.zone !== neighborhoodInfo.zone ||
       deliveryStreet.length < 2 || deliveryStreet.length > 160 ||
       deliveryNumber.length < 1 || deliveryNumber.length > 20 ||
       deliveryNeighborhood.length < 2 || deliveryNeighborhood.length > 100
@@ -139,7 +133,8 @@ export async function POST(request: Request) {
         { status: 400 },
       );
     }
-    deliveryZone = delivery.zone as DeliveryZone;
+    deliveryNeighborhood = neighborhoodInfo.name;
+    deliveryZone = neighborhoodInfo.zone;
     deliveryFeeCents = getDeliveryFeeCents(deliveryZone);
   }
 
