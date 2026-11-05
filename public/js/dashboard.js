@@ -56,15 +56,13 @@ function drawSales(){
  $("sales-average").textContent=money(sales.length?total/sales.length:0);
  var today=new Date(),buckets=[],title="";
  if(selectedPeriod==="all"){
-  title="Vendas por mês · todo o período";
-  var currentMonth=new Date(today.getFullYear(),today.getMonth(),1);
-  for(var monthIndex=11;monthIndex>=0;monthIndex--){
-   var bucketMonth=new Date(currentMonth.getFullYear(),currentMonth.getMonth()-monthIndex,1);
-   buckets.push({label:bucketMonth.toLocaleDateString("pt-BR",{month:"short",year:"2-digit"}),date:bucketMonth.getFullYear()+"-"+String(bucketMonth.getMonth()+1).padStart(2,"0"),amount:0});
-  }
+  title="Faturamento por ano · todo o período";
+  var salesYears=sales.map(function(sale){return new Date(sale.date).getFullYear()}).filter(Number.isFinite);
+  var firstYear=salesYears.length?Math.min.apply(null,salesYears):today.getFullYear();
+  for(var chartYear=firstYear;chartYear<=today.getFullYear();chartYear++)buckets.push({label:String(chartYear),date:String(chartYear),amount:0});
   sales.forEach(function(sale){
-   var monthKey=localDateString(new Date(sale.date)).slice(0,7);
-   var bucket=buckets.filter(function(item){return item.date===monthKey})[0];
+   var yearKey=String(new Date(sale.date).getFullYear());
+   var bucket=buckets.filter(function(item){return item.date===yearKey})[0];
    if(bucket)bucket.amount+=sale.amount;
   });
  }else if(selectedPeriod==="day"){
@@ -86,8 +84,9 @@ function drawSales(){
  $("chart-title").textContent=title;
  var peak=Math.max.apply(null,buckets.map(function(bucket){return bucket.amount}).concat([0]));
  $("sales-chart").innerHTML=buckets.map(function(bucket){
-  var height=peak?Math.max(bucket.amount?4:2,bucket.amount/peak*112):2;
-  return '<div class="bar-column" title="'+bucket.label+': '+money(bucket.amount)+'"><span class="bar-label">'+bucket.label+'</span><div class="bar" style="height:'+height+'px"></div></div>';
+  var height=peak?Math.max(bucket.amount?3:0,bucket.amount/peak*100):0;
+  var compactValue=bucket.amount?new Intl.NumberFormat("pt-BR",{notation:"compact",maximumFractionDigits:1}).format(bucket.amount):"";
+  return '<div class="bar-column" role="img" aria-label="'+escapeHtml(bucket.label+": "+money(bucket.amount))+'" title="'+escapeHtml(bucket.label+": "+money(bucket.amount))+'"><span class="bar-value">'+(compactValue||"&nbsp;")+'</span><div class="bar-track"><div class="bar" style="height:'+height+'%"></div></div><span class="bar-label">'+escapeHtml(bucket.label)+'</span></div>';
  }).join("");
  var recent=readSales().sort(function(a,b){return b.date.localeCompare(a.date)||b.id.localeCompare(a.id)}).slice(0,10);
  $("sales-list").innerHTML=recent.length?recent.map(function(sale){
@@ -237,10 +236,11 @@ function categoryOptions(selected){
 function readInventory(){
  return sharedInventoryReady?sharedInventory:{};
 }
-function inventoryItemFromFlavorForm(form,id,addedFlavor,addedQuantity){
+function inventoryItemFromFlavorForm(form,id,addedFlavor,addedQuantity,removedFlavor){
  var flavors=[],flavorStock={};
  form.querySelectorAll(".flavor-stock-input").forEach(function(input){
   var flavor=input.getAttribute("data-flavor"),quantityText=input.value,quantity=Number(quantityText);
+  if(flavor===removedFlavor)return;
   if(!flavor||!/^\d+$/.test(quantityText)||!Number.isSafeInteger(quantity)||quantity<0)throw new Error("Informe um estoque inteiro igual ou maior que zero para cada sabor.");
   if(flavors.some(function(existing){return existing.toLocaleLowerCase()===flavor.toLocaleLowerCase()}))throw new Error("Há sabores repetidos no estoque.");
   flavors.push(flavor);flavorStock[flavor]=quantity;
@@ -293,7 +293,7 @@ function render(){
    ?'<label>Estoque total (calculado)<input class="stock" type="number" value="'+totalFlavorStock+'" readonly><small>O total é a soma das quantidades por sabor.</small></label>'
    :'<label>Estoque<input class="stock" type="number" min="0" step="1" inputmode="numeric" value="'+(Number.isInteger(current.stock)?current.stock:"")+'" placeholder="Não informado" '+(sharedInventoryReady?"":"disabled")+'></label>';
   var flavorField=isEssence
-   ?'<div class="flavor-manager wide-field"><div class="flavor-stock-list">'+(flavors.length?flavors.map(function(flavor){return '<label class="flavor-stock-row"><span>'+escapeHtml(flavor)+'</span><input class="flavor-stock-input" data-flavor="'+escapeHtml(flavor)+'" type="number" min="0" step="1" inputmode="numeric" value="'+(Number.isInteger(flavorStock[flavor])?flavorStock[flavor]:0)+'" aria-label="Estoque de '+escapeHtml(flavor)+'" '+(sharedInventoryReady?"":"disabled")+'></label>'}).join(""):'<p class="flavor-empty">Nenhum sabor cadastrado ainda.</p>')+'</div><div class="flavor-add-row"><label>Novo sabor<input class="new-flavor-name" maxlength="50" placeholder="Ex.: Fresh Lemon" '+(sharedInventoryReady?"":"disabled")+'></label><label>Quantidade<input class="new-flavor-quantity" type="number" min="0" step="1" inputmode="numeric" placeholder="Ex.: 5" '+(sharedInventoryReady?"":"disabled")+'></label><button class="secondary" type="button" data-flavor-add '+(sharedInventoryReady?"":"disabled")+'>Adicionar sabor</button></div><small>Os sabores já cadastrados ficam salvos. Adicione um sabor novo sem apagar os anteriores.</small></div>'
+   ?'<div class="flavor-manager wide-field"><div class="flavor-stock-list">'+(flavors.length?flavors.map(function(flavor){return '<div class="flavor-stock-row"><span>'+escapeHtml(flavor)+'</span><input class="flavor-stock-input" data-flavor="'+escapeHtml(flavor)+'" type="number" min="0" step="1" inputmode="numeric" value="'+(Number.isInteger(flavorStock[flavor])?flavorStock[flavor]:0)+'" aria-label="Estoque de '+escapeHtml(flavor)+'" '+(sharedInventoryReady?"":"disabled")+'><button class="secondary danger flavor-remove" type="button" data-flavor-remove="'+escapeHtml(flavor)+'" aria-label="Remover sabor '+escapeHtml(flavor)+'" '+(sharedInventoryReady?"":"disabled")+'>Remover</button></div>'}).join(""):'<p class="flavor-empty">Nenhum sabor cadastrado ainda.</p>')+'</div><div class="flavor-add-row"><label>Novo sabor<input class="new-flavor-name" maxlength="50" placeholder="Ex.: Fresh Lemon" '+(sharedInventoryReady?"":"disabled")+'></label><label>Quantidade<input class="new-flavor-quantity" type="number" min="0" step="1" inputmode="numeric" placeholder="Ex.: 5" '+(sharedInventoryReady?"":"disabled")+'></label><button class="secondary" type="button" data-flavor-add '+(sharedInventoryReady?"":"disabled")+'>Adicionar sabor</button></div><small>Os sabores já cadastrados ficam salvos. Adicione um sabor novo sem apagar os anteriores.</small></div>'
    :'<input class="flavors" type="hidden" value="">';
   return '<article class="product" data-product="'+escapeHtml(product.id)+'"><h2>'+escapeHtml(product.n)+'</h2><form class="product-editor" data-product-save="'+escapeHtml(product.id)+'"><div class="product-editor-grid"><label>Nome<input name="name" maxlength="80" value="'+escapeHtml(product.n)+'" required></label><label>Marca<input name="brand" maxlength="50" value="'+escapeHtml(product.brand)+'" required></label><label>Categoria<select name="category">'+categoryOptions(product.c)+'</select></label><label>Preço (R$)<input name="price" type="number" min="0.01" step="0.01" value="'+product.p+'" required></label><label class="wide-field">Descrição<input name="description" maxlength="180" value="'+escapeHtml(product.d)+'" required></label><label class="wide-field">Trocar imagem<input name="image" type="file" accept="image/png,image/jpeg,image/webp"><small>Imagem atual: '+(product.img?"configurada":"nenhuma")+'. Selecione um arquivo para substituir.</small></label></div><div class="product-preview">'+imagePreview+'<span>Prévia da imagem do produto</span></div><div class="product-actions"><button class="secondary" type="submit">Salvar produto</button>'+deleteButton+'</div></form><form class="product-form" data-save="'+escapeHtml(product.id)+'">'+stockField+flavorField+'<button class="secondary" type="submit" '+(sharedInventoryReady?"":"disabled")+'>Salvar estoque online</button></form></article>';
  }).join("");
@@ -420,6 +420,25 @@ $("products").addEventListener("submit",async function(event){
  finally{submitButton.disabled=!sharedInventoryReady}
 });
 $("products").addEventListener("click",async function(event){
+ var removeFlavorButton=event.target.closest("[data-flavor-remove]");
+ if(removeFlavorButton){
+  var removeFlavorForm=removeFlavorButton.closest("[data-save]");
+  var removedFlavor=removeFlavorButton.getAttribute("data-flavor-remove");
+  var removeProductId=removeFlavorForm.getAttribute("data-save");
+  if(!window.confirm('Remover o sabor "'+removedFlavor+'" e seu estoque?'))return;
+  removeFlavorButton.disabled=true;
+  $("message").textContent="Removendo sabor do estoque online...";
+  try{
+   var updatedInventory=inventoryItemFromFlavorForm(removeFlavorForm,removeProductId,null,null,removedFlavor);
+   await saveInventoryItem(updatedInventory);
+   render();
+   $("message").textContent='Sabor "'+removedFlavor+'" removido da loja.';
+  }catch(error){
+   $("message").textContent="Não foi possível remover o sabor: "+error.message;
+   removeFlavorButton.disabled=false;
+  }
+  return;
+ }
  var addFlavorButton=event.target.closest("[data-flavor-add]");
  if(addFlavorButton){
   var flavorForm=addFlavorButton.closest("[data-save]");

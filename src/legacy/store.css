@@ -146,6 +146,9 @@ footer .logo b{color:#b99af0}
 .items::-webkit-scrollbar-thumb{background:#62447b;border-radius:9px}
 .it{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:15px 14px;margin-bottom:10px;border:1px solid #ffffff10;border-radius:16px;background:linear-gradient(135deg,#ffffff08,#ffffff03);font-size:14px;transition:border-color .2s,background .2s}
 .it:hover{border-color:#714c91;background:#21172b}
+.it-product{display:flex;align-items:center;gap:11px;min-width:0}
+.it-thumb{display:grid;place-items:center;flex:none;width:58px;height:58px;overflow:hidden;border:1px solid #a66bda33;border-radius:12px;background:radial-gradient(circle at 30% 20%,#7041a055,#24172f);color:#e8d8f8;font-size:20px;font-weight:800}
+.it-thumb img{width:100%;height:100%;object-fit:cover}
 .it-info{display:grid;gap:5px;min-width:0}
 .it-info strong{font-size:14px;font-weight:700;line-height:1.35;overflow-wrap:anywhere}
 .it-info small{color:var(--m);font-size:12px}

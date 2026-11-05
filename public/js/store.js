@@ -74,6 +74,11 @@ window.setInterval(updateStoreStatus,30000);
 window.addEventListener("focus",updateStoreStatus);
 function R(v){return "R$ "+v.toFixed(2).replace(".",",")}
 function esc(v){return String(v).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
+function productImageSource(product){
+ if(!product||typeof product.img!=="string"||!product.img)return "";
+ if(/^data:image\/(?:png|jpeg|webp);base64,/i.test(product.img)||/^https?:\/\//i.test(product.img))return product.img;
+ return "/"+product.img.replace(/^\/+/,"");
+}
 function updateDefaultPrices(products){
  var changed=false;
  products.forEach(function(product){
@@ -364,7 +369,13 @@ function openProductDialog(id,trigger){
 }
 function upd(){
  var ks=Object.keys(cart),c=0,s=0,h="";
- ks.forEach(function(k){var i=cart[k],name=i.n+(i.flavor?" — "+i.flavor:"");c+=i.q;s+=i.q*i.p;h+='<div class="it"><div class="it-info"><strong>'+esc(name)+'</strong><small>'+R(i.p)+' cada</small></div><div class="q"><button type="button" data-m="'+esc(k)+'" aria-label="Diminuir '+esc(name)+'">−</button><span>'+i.q+'</span><button type="button" data-a="'+esc(k)+'" aria-label="Aumentar '+esc(name)+'">+</button></div></div>'});
+ ks.forEach(function(k){
+  var i=cart[k],name=i.n+(i.flavor?" — "+i.flavor:""),product=P.filter(function(candidate){return candidate.id===i.id})[0];
+  var image=productImageSource(product);
+  var thumbnail=image?'<img src="'+esc(image)+'" alt="" loading="lazy">':'<span aria-hidden="true">'+esc(product&&product.l||i.n.charAt(0).toUpperCase())+'</span>';
+  c+=i.q;s+=i.q*i.p;
+  h+='<div class="it"><div class="it-product"><div class="it-thumb" aria-hidden="true">'+thumbnail+'</div><div class="it-info"><strong>'+esc(name)+'</strong><small>'+R(i.p)+' cada</small></div></div><div class="q"><button type="button" data-m="'+esc(k)+'" aria-label="Diminuir '+esc(name)+'">−</button><span>'+i.q+'</span><button type="button" data-a="'+esc(k)+'" aria-label="Aumentar '+esc(name)+'">+</button></div></div>';
+ });
  try{
   localStorage.setItem(CART_STORAGE_KEY,JSON.stringify(cart));
   cartStorageWarningShown=false;

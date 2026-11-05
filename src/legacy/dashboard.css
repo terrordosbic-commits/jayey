@@ -23,11 +23,14 @@ h1{font-size:clamp(25px,6vw,34px);line-height:1.15}
 .metric span{display:block;color:var(--muted);font-size:11px}
 .metric strong{display:block;margin-top:3px;font-size:clamp(16px,4vw,22px);overflow-wrap:anywhere}
 .chart-title{font-size:15px;margin:20px 0 10px}
-.chart-scroll{overflow-x:auto;padding-bottom:8px}
-.chart{height:150px;min-width:max-content;display:grid;grid-auto-columns:24px;grid-auto-flow:column;align-items:end;gap:5px;border-bottom:1px solid var(--line);padding:0 3px}
-.bar-column{height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:5px}
-.bar{width:15px;min-height:2px;border-radius:5px 5px 0 0;background:linear-gradient(180deg,#bd8cff,#5b21b6)}
-.bar-label{font-size:9px;color:var(--muted);white-space:nowrap}
+.chart-scroll{overflow-x:auto;padding:8px 4px 12px;scrollbar-color:#62447b transparent}
+.chart{height:220px;min-width:max-content;display:grid;grid-auto-columns:48px;grid-auto-flow:column;align-items:stretch;gap:8px;padding:0 4px;background:repeating-linear-gradient(to top,transparent 0,transparent 39px,#ffffff0b 40px)}
+.bar-column{height:100%;min-width:0;display:grid;grid-template-rows:16px minmax(0,1fr) 18px;justify-items:center;gap:5px}
+.bar-value{max-width:100%;overflow:hidden;color:#e8d8f8;font-size:9px;font-weight:700;white-space:nowrap;text-overflow:clip}
+.bar-track{width:100%;height:100%;display:flex;align-items:flex-end;justify-content:center;overflow:hidden;border-bottom:1px solid #ffffff20;background:repeating-linear-gradient(to top,transparent 0,transparent 35px,#ffffff08 36px)}
+.bar{width:min(28px,72%);min-height:0;border-radius:7px 7px 2px 2px;background:linear-gradient(180deg,#d9b8ff 0%,#9a5be3 42%,#5b21b6 100%);box-shadow:0 0 16px #9a5be344;transition:height .35s ease,filter .2s ease}
+.bar-column:hover .bar{filter:brightness(1.2)}
+.bar-label{max-width:100%;overflow:hidden;color:var(--muted);font-size:10px;font-weight:650;white-space:nowrap;text-overflow:clip}
 .sale-form{display:grid;gap:10px}
 .sale-form button{align-self:end}
 .music-form{display:grid;gap:10px}
@@ -39,9 +42,10 @@ h1{font-size:clamp(25px,6vw,34px);line-height:1.15}
 .product-form .wide-field{grid-column:1/-1}
 .flavor-manager{display:grid;gap:12px}
 .flavor-stock-list{display:grid;gap:8px}
-.flavor-stock-row{display:grid;grid-template-columns:minmax(0,1fr) 100px;align-items:center;gap:10px;padding:8px 10px;background:var(--card);border:1px solid var(--line);border-radius:10px}
+.flavor-stock-row{display:grid;grid-template-columns:minmax(0,1fr) 76px auto;align-items:center;gap:8px;padding:8px 10px;background:var(--card);border:1px solid var(--line);border-radius:10px}
 .flavor-stock-row span{color:var(--text);overflow-wrap:anywhere}
 .flavor-stock-row input{padding:8px}
+.flavor-stock-row .flavor-remove{padding:8px}
 .flavor-add-row{display:grid;gap:10px}
 .flavor-manager small,.flavor-empty{color:var(--muted);font-size:12px}
 .new-product-form{display:grid;gap:12px;padding:14px;background:var(--card);border:1px solid var(--line);border-radius:13px}
