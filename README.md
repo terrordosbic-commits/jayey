@@ -23,6 +23,8 @@ No checkout, o cliente escolhe entre retirada e entrega, informa nome, telefone 
 
 O dashboard (`/dashboard`) exibe os pedidos online e os dados de contato/endereço atrás de uma senha. Configure `DASHBOARD_PASSWORD` com uma senha exclusiva de pelo menos 12 caracteres nas variáveis privadas do servidor. Sem ela, o dashboard permanece fechado. A sessão usa cookie HttpOnly, SameSite=Strict, com expiração em oito horas.
 
+O atendimento virtual Jay usa respostas locais baseadas no catálogo e em assuntos comuns da loja; não depende de um serviço externo de IA. Perguntas fora do que está cadastrado são encaminhadas para o WhatsApp da equipe.
+
 No servidor, configure `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `MERCADOPAGO_ACCESS_TOKEN`, `NEXT_PUBLIC_MERCADOPAGO_PUBLIC_KEY` e `DASHBOARD_PASSWORD`. Mantenha as chaves secretas somente nas variáveis privadas do servidor; apenas a chave pública do Mercado Pago pode ser exposta ao navegador.
 
 Execute novamente `supabase-orders.sql` no Supabase para criar/atualizar a tabela com os campos de recebimento, entrega e contato antes de testar o fluxo.

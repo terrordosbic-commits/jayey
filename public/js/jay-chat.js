@@ -4,6 +4,7 @@
  var input=document.getElementById("jay-chat-input");
  var messages=document.getElementById("jay-chat-messages");
  var form=document.getElementById("jay-chat-form");
+ var STORE_WHATSAPP_PHONE="49999726586";
  var lastProducts=[];
  if(!chatWindow||!toggle||!input||!messages||!form)return;
 
@@ -27,10 +28,14 @@
   messages.scrollTop=messages.scrollHeight;
  }
  function linkToTeam(message){
-  return {text:message||"Para não te passar uma informação errada, é melhor confirmar isso com a equipe da loja.",link:"https://wa.me/"+WHATS+"?text="+encodeURIComponent("Olá! Vim pelo site Jay Ey e queria tirar uma dúvida.")};
+  return {text:message||"Para não te passar uma informação errada, é melhor confirmar isso com a equipe da loja.",link:"https://wa.me/"+STORE_WHATSAPP_PHONE+"?text="+encodeURIComponent("Olá! Vim pelo site Jay Ey e queria tirar uma dúvida.")};
  }
  function contains(text,words){
-  return words.some(function(word){return text.indexOf(word)!==-1});
+  var searchable=" "+text+" ";
+  return words.some(function(word){
+   var term=normalize(word);
+   return term&&searchable.indexOf(" "+term+" ")!==-1;
+  });
  }
  function productTerms(product){
   var aliases={essencias:["essencia","essencias","fumo","tabaco"],carvao:["carvao","carvao de coco","bass","cocobass","brasa"],aluminio:["aluminio","papel aluminio","folha","alligator"]};
@@ -38,7 +43,9 @@
  }
  function matchedProducts(text){
   return P.filter(function(product){
-   return productTerms(product).some(function(term){return term&&text.indexOf(term)!==-1});
+   return productTerms(product).some(function(term){
+    return term&&(" "+text+" ").indexOf(" "+term+" ")!==-1;
+   });
   });
  }
  function productSummary(products,withDetails){
@@ -84,22 +91,25 @@
    });
   });
 
-  if(contains(text,["whatsapp","pessoa","humano","atendente","vendedor","falar com alguem","falar com a equipe"])){
+  if(contains(text,["whatsapp","humano","atendente","vendedor","falar com alguem","falar com a equipe","falar com pessoa","falar com atendente","atendimento humano"])){
    return linkToTeam("Claro! Você pode falar diretamente com a equipe da loja por aqui.");
   }
-  if(words.length<=5&&/^(oi|ola|eae|eai|opa|bom dia|boa tarde|boa noite|fala|salve|tudo bem|tudo certo)$/.test(text)){
+  if(words.length<=6&&/^(oi|ola|eae|eai|opa|bom dia|boa tarde|boa noite|fala|salve|tudo bem|tudo certo|oi tudo bem|ola tudo bem)$/.test(text)){
    return {text:"Ô, tudo certo? Sou a Jay, atendente virtual da Jay Ey 😊 Posso ajudar você a encontrar produtos e sabores, consultar preços, fazer um pedido ou conferir nosso horário."};
   }
-  if(contains(text,["horario","abre","aberto","fecha","fechado","funcionamento"])){
+  if(contains(text,["horario","abre","aberto","aberta","fecha","fechado","fechada","funcionamento"])){
    return {text:(isStoreOpen(new Date())?"Estamos abertos agora!":"No momento a loja está fechada.")+" Nosso horário: segunda a quinta, das 18h à meia-noite; sexta a domingo, das 16h à 1h."};
   }
-  if(contains(text,["entrega","entregam","delivery","frete","bairro","regiao","regioes","endereco","onde fica","localizacao","retirada","retirar","buscar na loja"])){
-   return {text:"No checkout, você pode escolher retirada no local ou entrega e informar seu bairro. A taxa aparece antes de confirmar o pagamento."};
+  if(contains(text,["onde fica","endereco","localizacao","local","endereco da loja"])){
+   return linkToTeam("A localização exata pode ser confirmada com a equipe da loja pelo WhatsApp.");
   }
-  if(contains(text,["pagamento","pagar","pix","cartao","dinheiro","parcela","parcelamento"])){
-   return {text:"O pagamento é feito pelo próprio site, pelo Mercado Pago. Depois de escolher retirada ou entrega e informar seus dados, você pode pagar com Pix ou cartão."};
+  if(contains(text,["entrega","entregam","delivery","frete","bairro","regiao","regioes","retirada","retirar","buscar na loja","buscar pedido"])){
+   return {text:"Você pode retirar no local sem frete ou pedir entrega. O valor depende do bairro: grátis em Bela Vista e Promorar; R$ 7 em Santa Helena; R$ 8 em Cidade Alta; R$ 10 no Centro e bairros próximos; R$ 17 nos demais bairros e distritos. No checkout, pesquise e selecione seu bairro para ver o total antes de pagar."};
   }
-  if(contains(text,["troca","devolucao","reembolso","garantia","problema com pedido","pedido atrasado"])){
+  if(contains(text,["pagamento","pagamentos","pagar","pago","pix","cartao","dinheiro","parcela","parcelamento","mercado pago"])){
+   return {text:"O pagamento é feito pelo próprio site, pelo Mercado Pago. Depois de escolher retirada ou entrega e informar seus dados, você pode pagar com Pix ou cartão. O Pix mostra o QR Code e o código para copiar e colar."};
+  }
+  if(contains(text,["acompanhar pedido","status do pedido","meu pedido","pedido atrasado","pedido nao chegou","troca","devolucao","reembolso","garantia","problema com pedido"])){
    return linkToTeam("Sinto muito pelo problema. A equipe consegue conferir seu pedido e orientar você.");
   }
   if(flavors.length){
@@ -115,7 +125,7 @@
    var available=allFlavors();
    return {text:available.length?"Estes são os sabores cadastrados no estoque agora:\n"+available.join("\n"):"Ainda não há sabores cadastrados no estoque do site. A equipe pode confirmar outras opções disponíveis."};
   }
-  if(contains(text,["estoque","disponivel","disponibilidade","tem","vende","vendem","encontrar","comprar"])&&products.length){
+  if(contains(text,["estoque","disponivel","disponibilidade","tem","vende","vendem","encontrar","comprar","quero","procuro","busco"])&&products.length){
    lastProducts=products;
    return {text:productSummary(products,true)};
   }
@@ -146,7 +156,7 @@
    var aluminum=P.filter(function(product){return product.c==="aluminio"});
    return {text:aluminum.length?"Esta é a opção de alumínio no catálogo:\n"+productSummary(aluminum,true):"Não encontrei alumínio no catálogo agora. A equipe pode confirmar as opções pelo WhatsApp."};
   }
-  if(contains(text,["catalogo","produtos","produto","o que voces tem","o que tem na loja","opcoes","opcao","recomenda","indica","sugestao"])){
+  if(contains(text,["catalogo","produtos","produto","o que voces tem","o que tem na loja","opcoes","opcao","recomenda","indica","sugestao","ajuda","ajudar","cardapio"])){
    return {text:"No catálogo temos:\n"+productSummary(P,true)+"\nSe você me disser o que procura, posso ajudar a encontrar."};
   }
   if(contains(text,["carrinho","pedido","pedir","finalizar","comprar","como funciona","como faco"])){
@@ -161,7 +171,13 @@
   var text=question.trim();
   if(!text)return;
   addMessage(text,"user");
-  var response=answer(text);
+  var response;
+  try{
+   response=answer(text);
+  }catch(error){
+   console.error("Jay assistant could not answer the message.",error);
+   response=linkToTeam("Tive um problema para responder agora. A equipe consegue ajudar você pelo WhatsApp.");
+  }
   addMessage(response.text,"jay",response.link,response.linkLabel);
   if(response.openDashboard)window.open("/dashboard","_blank","noopener,noreferrer");
  }
