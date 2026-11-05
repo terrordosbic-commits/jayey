@@ -10,7 +10,7 @@
  function normalize(value){
   return value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^\w\s]/g," ").replace(/\s+/g," ").trim();
  }
- function addMessage(text,from,link){
+ function addMessage(text,from,link,linkText){
   var message=document.createElement("div");
   message.className="jay-chat-message"+(from==="user"?" user":"");
   message.textContent=text;
@@ -19,7 +19,7 @@
    anchor.href=link;
    anchor.target="_blank";
    anchor.rel="noopener noreferrer";
-   anchor.textContent="Chamar a equipe no WhatsApp";
+   anchor.textContent=linkText||"Chamar a equipe no WhatsApp";
    message.appendChild(document.createElement("br"));
    message.appendChild(anchor);
   }
@@ -66,6 +66,12 @@
   var words=text.split(" ").filter(Boolean);
   var products=matchedProducts(text);
   var flavors=[];
+  if(
+   contains(text,["dashboard","painel administrativo","painel da loja"])&&
+   contains(text,["abrir","abre","acessar","acessa","entrar","ir para","ir pro","me leva","mostrar"])
+  ){
+   return {text:"Claro! Vou abrir o dashboard da loja em uma nova aba. Entre com sua senha administrativa.",link:"/dashboard",linkLabel:"Abrir dashboard",openDashboard:true};
+  }
   P.filter(function(product){return product.c==="essencias"}).forEach(function(product){
    stockFor(product.id).flavors.forEach(function(flavor){
     if(text.indexOf(normalize(flavor))!==-1)flavors.push({product:product,flavor:flavor});
@@ -145,7 +151,8 @@
   if(!text)return;
   addMessage(text,"user");
   var response=answer(text);
-  addMessage(response.text,"jay",response.link);
+  addMessage(response.text,"jay",response.link,response.linkLabel);
+  if(response.openDashboard)window.open("/dashboard","_blank","noopener,noreferrer");
  }
  function sendFromInput(event){
   event.preventDefault();
