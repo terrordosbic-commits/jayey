@@ -2,11 +2,28 @@
 var SUPABASE_URL=window.JAYEY_SUPABASE_CONFIG.url;
 var SUPABASE_ANON_KEY=window.JAYEY_SUPABASE_CONFIG.anonKey;
 var supabaseConfigured=Boolean(SUPABASE_URL&&SUPABASE_ANON_KEY);
+var storeMusicStarted=false;
 var customMusicUrl=SUPABASE_URL.replace(/\/+$/,"")+"/storage/v1/object/public/jayey-media/store/music";
+function playStoreMusic(){
+ $("site-music").play().catch(function(){
+  var t=$("ts");t.textContent="Não foi possível iniciar a música neste navegador";t.classList.add("show");
+  setTimeout(function(){t.classList.remove("show");t.textContent="Adicionado ao carrinho"},3500);
+ });
+}
+var storeMusicElement=document.getElementById("site-music");
+storeMusicElement.crossOrigin="anonymous";
+storeMusicElement.addEventListener("error",function(){
+ if(storeMusicElement.dataset.customMusicActive!=="true")return;
+ storeMusicElement.dataset.customMusicActive="false";
+ storeMusicElement.src="/musica/musica.mp3";
+ if(storeMusicStarted)playStoreMusic();
+});
 fetch(customMusicUrl,{method:"HEAD",cache:"no-store"}).then(function(response){
  if(response.ok){
   var music=$("site-music");
+  music.dataset.customMusicActive="true";
   music.src=customMusicUrl+"?v="+Date.now();
+  if(storeMusicStarted)playStoreMusic();
  }
 }).catch(function(error){
  console.warn("Não foi possível verificar a música personalizada da loja.",error);
@@ -275,13 +292,11 @@ function prepareMusicAudio(){
 });
 volume.addEventListener("input",setMusicVolume);
 document.addEventListener("click",function startMusic(){
+ storeMusicStarted=true;
  prepareMusicAudio().catch(function(){
   notify("Não foi possível ativar o controle de volume avançado.");
  });
- music.play().catch(function(){
-  var t=$("ts");t.textContent="Não foi possível iniciar a música neste navegador";t.classList.add("show");
-  setTimeout(function(){t.classList.remove("show");t.textContent="Adicionado ao carrinho"},3500);
- });
+ playStoreMusic();
 },{once:true});
 function card(p){
  var current=stockFor(p.id),soldOut=current.stock===0;
