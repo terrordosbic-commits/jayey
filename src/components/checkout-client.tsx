@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import styles from "@/app/checkout/checkout.module.css";
@@ -51,11 +51,11 @@ type BrickFormData = {
   formData: PaymentFormData;
 };
 type PaymentSettings = {
-  initialization: { amount: number; payer: { email: string } };
+  initialization: { amount: number };
   customization: {
     paymentMethods: {
       creditCard: string;
-      bankTransfer: string;
+      bankTransfer: string[];
     };
     visual: {
       style: {
@@ -156,6 +156,7 @@ export default function CheckoutClient({ publicKey }: { publicKey: string }) {
   const [deliveryDetails, setDeliveryDetails] = useState<DeliveryDetails | null>(null);
   const [checkoutOrder, setCheckoutOrder] = useState<CheckoutOrder | null>(null);
   const [savingOrder, setSavingOrder] = useState(false);
+  const [paymentSubmitting, setPaymentSubmitting] = useState(false);
   const [deliveryForm, setDeliveryForm] = useState<DeliveryDetails>({
     name: "",
     phone: "",
@@ -171,6 +172,7 @@ export default function CheckoutClient({ publicKey }: { publicKey: string }) {
   const controllerRef = useRef<PaymentBrickController | null>(null);
   const idempotencyKeyRef = useRef<string | null>(null);
   const paymentAttemptKeyRef = useRef<string | null>(null);
+  const paymentSubmittingRef = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -229,11 +231,94 @@ export default function CheckoutClient({ publicKey }: { publicKey: string }) {
     };
   }, []);
 
+  const submitPayment = useCallback(async (method: string, formData: PaymentFormData) => {
+    if (paymentSubmittingRef.current) {
+      throw new Error("Um pagamento já está sendo processado. Aguarde um momento.");
+    }
+
+    const currentOrder = checkoutOrder;
+    const currentDetails = deliveryDetails;
+    const orderIdempotencyKey = idempotencyKeyRef.current;
+    if (!currentOrder || !currentDetails || !orderIdempotencyKey) {
+      throw new Error("Não foi possível recuperar os dados do pedido. Reinicie o checkout.");
+    }
+
+    paymentSubmittingRef.current = true;
+    setPaymentSubmitting(true);
+    setError("");
+    const paymentIdempotencyKey =
+      paymentAttemptKeyRef.current || crypto.randomUUID();
+    paymentAttemptKeyRef.current = paymentIdempotencyKey;
+
+    try {
+      const response = await fetch("/api/payments", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Idempotency-Key": paymentIdempotencyKey,
+          "X-Order-Idempotency-Key": orderIdempotencyKey,
+        },
+        body: JSON.stringify({
+          items: JSON.parse(localStorage.getItem(CART_STORAGE_KEY) || "[]"),
+          paymentMethod: method,
+          paymentData: formData,
+          orderReference: currentOrder.orderReference,
+          fulfillmentType: currentOrder.fulfillmentType,
+          customer: {
+            name: currentDetails.name,
+            phone: currentDetails.phone,
+            email: currentDetails.email,
+          },
+          delivery: currentOrder.fulfillmentType === "delivery"
+            ? {
+                street: currentDetails.street,
+                number: currentDetails.number,
+                neighborhood: currentDetails.neighborhood,
+                zone: currentDetails.zone,
+              }
+            : null,
+        }),
+      });
+      const result: unknown = await response.json();
+      if (!response.ok) {
+        const message =
+          result && typeof result === "object" && "error" in result &&
+          typeof result.error === "string"
+            ? result.error
+            : "Não foi possível iniciar o pagamento.";
+        throw new Error(message);
+      }
+      if (
+        !result ||
+        typeof result !== "object" ||
+        !("id" in result) ||
+        typeof result.id !== "string" ||
+        !("externalReference" in result) ||
+        typeof result.externalReference !== "string" ||
+        !("status" in result) ||
+        typeof result.status !== "string"
+      ) {
+        throw new Error("O Mercado Pago retornou uma resposta inválida.");
+      }
+      setPayment(result as PaymentResult);
+      return result as PaymentResult;
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Não foi possível enviar o pagamento. Confira sua conexão e tente novamente.",
+      );
+      throw cause;
+    } finally {
+      paymentSubmittingRef.current = false;
+      setPaymentSubmitting(false);
+    }
+  }, [checkoutOrder, deliveryDetails]);
+
   useEffect(() => {
     if (!quote || !publicKey || !checkoutOrder || !deliveryDetails || payment) return;
     let active = true;
     const currentOrder = checkoutOrder;
-    const currentDetails = deliveryDetails;
 
     async function mountBrick() {
       try {
@@ -247,12 +332,11 @@ export default function CheckoutClient({ publicKey }: { publicKey: string }) {
           {
             initialization: {
               amount: currentOrder.amount,
-              payer: { email: currentDetails.email },
             },
             customization: {
               paymentMethods: {
                 creditCard: "all",
-                bankTransfer: "all",
+                bankTransfer: [],
               },
               visual: {
                 style: {
@@ -265,83 +349,13 @@ export default function CheckoutClient({ publicKey }: { publicKey: string }) {
                 if (active) setError("");
               },
               onSubmit: async ({ selectedPaymentMethod, formData }) => {
-                setError("");
-                const orderIdempotencyKey = idempotencyKeyRef.current;
-                if (!orderIdempotencyKey) {
-                  throw new Error("Não foi possível recuperar o identificador do pedido. Reinicie o checkout.");
-                }
-                const paymentIdempotencyKey =
-                  paymentAttemptKeyRef.current || crypto.randomUUID();
-                paymentAttemptKeyRef.current = paymentIdempotencyKey;
                 const method =
                   (typeof formData.payment_method_id === "string" &&
                   formData.payment_method_id) ||
                   (typeof selectedPaymentMethod === "string"
                     ? selectedPaymentMethod
                     : selectedPaymentMethod?.id || "");
-
-                try {
-                  const response = await fetch("/api/payments", {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                      "X-Idempotency-Key": paymentIdempotencyKey,
-                      "X-Order-Idempotency-Key": orderIdempotencyKey,
-                    },
-                    body: JSON.stringify({
-                      items: JSON.parse(localStorage.getItem(CART_STORAGE_KEY) || "[]"),
-                      paymentMethod: method,
-                      paymentData: formData,
-                      orderReference: currentOrder.orderReference,
-                      fulfillmentType: currentOrder.fulfillmentType,
-                      customer: {
-                        name: currentDetails.name,
-                        phone: currentDetails.phone,
-                        email: currentDetails.email,
-                      },
-                      delivery: currentOrder.fulfillmentType === "delivery"
-                        ? {
-                            street: currentDetails.street,
-                            number: currentDetails.number,
-                            neighborhood: currentDetails.neighborhood,
-                            zone: currentDetails.zone,
-                          }
-                        : null,
-                    }),
-                  });
-                  const result: unknown = await response.json();
-                  if (!response.ok) {
-                    const message =
-                      result && typeof result === "object" && "error" in result &&
-                      typeof result.error === "string"
-                        ? result.error
-                        : "Não foi possível iniciar o pagamento.";
-                    throw new Error(message);
-                  }
-                  if (
-                    !result ||
-                    typeof result !== "object" ||
-                    !("id" in result) ||
-                    typeof result.id !== "string" ||
-                    !("externalReference" in result) ||
-                    typeof result.externalReference !== "string" ||
-                    !("status" in result) ||
-                    typeof result.status !== "string"
-                  ) {
-                    throw new Error("O Mercado Pago retornou uma resposta inválida.");
-                  }
-                  if (active) setPayment(result as PaymentResult);
-                  return result as PaymentResult;
-                } catch (cause) {
-                  if (active) {
-                    setError(
-                      cause instanceof Error
-                        ? cause.message
-                        : "Não foi possível enviar o pagamento. Confira sua conexão e tente novamente.",
-                    );
-                  }
-                  throw cause;
-                }
+                return submitPayment(method, formData);
               },
               onError: (brickError) => {
                 console.error("Mercado Pago Payment Brick error", brickError);
@@ -368,7 +382,18 @@ export default function CheckoutClient({ publicKey }: { publicKey: string }) {
       controllerRef.current?.unmount();
       controllerRef.current = null;
     };
-  }, [checkoutOrder, deliveryDetails, payment, publicKey, quote]);
+  }, [checkoutOrder, deliveryDetails, payment, publicKey, quote, submitPayment]);
+
+  async function submitPixPayment() {
+    try {
+      await submitPayment("pix", {
+        payment_method_id: "pix",
+        payer: { email: deliveryDetails?.email },
+      });
+    } catch (cause) {
+      console.error("Could not create Pix payment", cause);
+    }
+  }
 
   useEffect(() => {
     if (!payment || payment.status === "approved" || payment.status === "rejected") return;
@@ -847,10 +872,23 @@ export default function CheckoutClient({ publicKey }: { publicKey: string }) {
             </div>
           ) : null}
 
-          {checkoutOrder && publicKey && !payment ? (
-            <div className={styles.paymentFrame}>
-              <div id="paymentBrick_container" />
-            </div>
+          {checkoutOrder && deliveryDetails && publicKey && !payment ? (
+            <>
+              <button
+                className={styles.button}
+                type="button"
+                disabled={paymentSubmitting}
+                onClick={submitPixPayment}
+              >
+                {paymentSubmitting ? "Gerando Pix…" : "Pagar com Pix"}
+              </button>
+              <p className={styles.muted}>
+                Para pagar com cartão, use o formulário abaixo.
+              </p>
+              <div className={styles.paymentFrame}>
+                <div id="paymentBrick_container" />
+              </div>
+            </>
           ) : null}
 
           {loading && !payment ? (

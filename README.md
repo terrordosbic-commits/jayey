@@ -19,7 +19,7 @@ Use `npm run build` para criar a versão de produção e `npm start` para execut
 
 ## Checkout
 
-No checkout, o cliente escolhe entre retirada e entrega, informa nome, telefone e e-mail e o pedido é gravado no Supabase antes de abrir o pagamento do Mercado Pago. O e-mail é solicitado antes do formulário de pagamento e enviado como dado inicial ao Mercado Pago para evitar falhas de preenchimento automático em navegadores móveis. Para entrega, também informa rua, número e bairro e escolhe a região da taxa: Promorar/Bela Vista (grátis), Santa Helena (R$ 7), Cidade Alta (R$ 8), Centro (R$ 10) ou demais bairros (R$ 16). O total é recalculado no servidor.
+No checkout, o cliente escolhe entre retirada e entrega, informa nome, telefone e e-mail e o pedido é gravado no Supabase antes do pagamento. O Pix é criado pelo servidor com o e-mail informado no checkout, sem depender da validação de e-mail do formulário incorporado do Mercado Pago; o formulário do Payment Brick permanece disponível para pagamentos com cartão. Para entrega, também informa rua, número e bairro e escolhe a região da taxa: Promorar/Bela Vista (grátis), Santa Helena (R$ 7), Cidade Alta (R$ 8), Centro (R$ 10) ou demais bairros (R$ 16). O total é recalculado no servidor.
 
 O dashboard (`/dashboard`) exibe os pedidos online e os dados de contato/endereço atrás de uma senha. Configure `DASHBOARD_PASSWORD` com uma senha exclusiva de pelo menos 12 caracteres nas variáveis privadas do servidor. Sem ela, o dashboard permanece fechado. A sessão usa cookie HttpOnly, SameSite=Strict, com expiração em oito horas.
 
