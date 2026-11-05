@@ -1,0 +1,621 @@
+.page {
+  min-height: 100vh;
+  padding: 28px 24px 48px;
+  background:
+    radial-gradient(ellipse at 18% 0%, rgb(91 33 182 / 18%), transparent 38%),
+    radial-gradient(ellipse at 100% 80%, rgb(124 58 237 / 10%), transparent 34%),
+    #0b0910;
+  color: #f7f3ff;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.checkout {
+  width: min(100%, 1080px);
+  margin: 0 auto;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 28px;
+  border-bottom: 1px solid rgb(255 255 255 / 9%);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 850;
+  letter-spacing: 0.1em;
+  text-decoration: none;
+}
+
+.brandMark {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid rgb(196 165 255 / 35%);
+  border-radius: 14px;
+  background: linear-gradient(145deg, #8b5cf6, #5b21b6);
+  box-shadow: 0 8px 24px rgb(91 33 182 / 35%);
+  font-size: 14px;
+  letter-spacing: -0.06em;
+}
+
+.brandText {
+  display: grid;
+  gap: 2px;
+}
+
+.brandText small {
+  color: #a99bb9;
+  font-size: 9px;
+  font-weight: 650;
+  letter-spacing: 0.22em;
+}
+
+.secureNote {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #c9bdd8;
+  font-size: 13px;
+}
+
+.secureIcon {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid rgb(196 165 255 / 18%);
+  border-radius: 50%;
+  color: #c4a5ff;
+  font-size: 14px;
+}
+
+.heading {
+  max-width: 720px;
+  margin: 42px auto 28px;
+  text-align: center;
+}
+
+.eyebrow {
+  display: inline-block;
+  margin-bottom: 12px;
+  color: #c4a5ff;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.heading h1 {
+  margin: 0;
+  font-size: clamp(30px, 5vw, 42px);
+  font-weight: 820;
+  letter-spacing: -0.04em;
+  line-height: 1.12;
+}
+
+.heading p {
+  margin: 12px 0 0;
+  color: #b6a8c7;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.78fr) minmax(0, 1.22fr);
+  align-items: start;
+  gap: 22px;
+}
+
+.summaryCard,
+.paymentCard {
+  min-width: 0;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 22px;
+  box-shadow: 0 24px 70px rgb(0 0 0 / 24%);
+}
+
+.summaryCard {
+  position: sticky;
+  top: 24px;
+  padding: 24px;
+  background: linear-gradient(155deg, #191321, #120f17 70%);
+}
+
+.sectionLabel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 20px;
+  color: #a99bb9;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.sectionLabel span {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 9px;
+  background: rgb(139 92 246 / 15%);
+  color: #c4a5ff;
+  font-size: 13px;
+}
+
+.summaryTitle {
+  margin: 0 0 5px;
+  font-size: 20px;
+  font-weight: 760;
+  letter-spacing: -0.02em;
+}
+
+.summaryHint {
+  margin: 0 0 20px;
+  color: #9e91ad;
+  font-size: 13px;
+}
+
+.items {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 15px 0;
+  border-top: 1px solid rgb(255 255 255 / 8%);
+  color: #e8e0f0;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.item span:last-child {
+  flex: 0 0 auto;
+  color: #fff;
+  font-weight: 650;
+}
+
+.total {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 8px 0 0;
+  padding-top: 20px;
+  border-top: 1px solid rgb(255 255 255 / 12%);
+  font-size: 14px;
+}
+
+.total span:first-child {
+  color: #c8bdd4;
+}
+
+.total span:last-child {
+  color: #fff;
+  font-size: 23px;
+  font-weight: 820;
+  letter-spacing: -0.03em;
+}
+
+.summaryFooter {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 22px;
+  padding: 14px;
+  border: 1px solid rgb(196 165 255 / 14%);
+  border-radius: 14px;
+  background: rgb(139 92 246 / 7%);
+  color: #b9acc8;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.summaryFooter span {
+  color: #c4a5ff;
+  font-size: 15px;
+}
+
+.paymentCard {
+  padding: 26px;
+  background: #15111b;
+}
+
+.paymentHeader {
+  margin-bottom: 18px;
+}
+
+.paymentHeader h2 {
+  margin: 0;
+  font-size: 21px;
+  font-weight: 760;
+  letter-spacing: -0.025em;
+}
+
+.paymentHeader p {
+  margin: 7px 0 0;
+  color: #a99bb9;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.choiceGrid {
+  display: grid;
+  gap: 12px;
+}
+
+.choiceCard {
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 18px;
+  border: 1px solid rgb(255 255 255 / 11%);
+  border-radius: 15px;
+  background: #100d15;
+  color: #f7f3ff;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease, transform 140ms ease;
+}
+
+.choiceCard:hover {
+  transform: translateY(-1px);
+  border-color: rgb(196 165 255 / 55%);
+  background: #191321;
+}
+
+.choiceCard:focus-visible,
+.textButton:focus-visible,
+.deliveryForm input:focus-visible {
+  outline: 3px solid #c4a5ff;
+  outline-offset: 3px;
+}
+
+.choiceIcon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 13px;
+  background: rgb(139 92 246 / 15%);
+  color: #c4a5ff;
+  font-size: 20px;
+}
+
+.choiceCard strong,
+.choiceCard small {
+  display: block;
+}
+
+.choiceCard strong {
+  font-size: 15px;
+}
+
+.choiceCard small {
+  margin-top: 5px;
+  color: #a99bb9;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.choiceArrow {
+  color: #c4a5ff;
+  font-size: 20px;
+}
+
+.fulfillmentResult,
+.deliverySummary {
+  padding: 18px;
+  border: 1px solid rgb(196 165 255 / 18%);
+  border-radius: 15px;
+  background: #100d15;
+}
+
+.fulfillmentResult h3,
+.deliverySummary h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.fulfillmentResult p,
+.deliverySummary p {
+  margin: 0 0 12px;
+  color: #b6a8c7;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.deliveryForm {
+  display: grid;
+  gap: 15px;
+}
+
+.deliveryForm label {
+  display: grid;
+  gap: 7px;
+  color: #e9e1f1;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.deliveryForm input,
+.deliveryForm select {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 46px;
+  padding: 11px 13px;
+  border: 1px solid #493c58;
+  border-radius: 10px;
+  background: #0e0b13;
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+}
+
+.deliveryForm select {
+  appearance: none;
+}
+
+.deliveryForm input:focus,
+.deliveryForm select:focus {
+  border-color: #a78bfa;
+}
+
+.deliveryForm input::placeholder {
+  color: #857991;
+}
+
+.addressRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px;
+  gap: 12px;
+}
+
+.formNote {
+  margin: 0;
+  color: #9e91ad;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.textButton {
+  display: block;
+  margin: 13px auto 0;
+  padding: 8px 10px;
+  border: 0;
+  background: transparent;
+  color: #c4a5ff;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.textButton:hover {
+  color: #e2d2ff;
+  text-decoration: underline;
+}
+
+.paymentFrame {
+  min-height: 180px;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 10%);
+  border-radius: 16px;
+  background: #100d15;
+}
+
+.muted {
+  color: #b6a8c7;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.paymentFrame > .muted {
+  margin: 0;
+  padding: 24px;
+  color: #b6a8c7;
+}
+
+.alert {
+  margin: 16px 0;
+  padding: 14px 16px;
+  border: 1px solid #754137;
+  border-radius: 12px;
+  background: #321b1c;
+  color: #ffd9d2;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 18px;
+  color: #c4a5ff;
+  font-size: 13px;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.back:hover {
+  color: #e2d2ff;
+  text-decoration: underline;
+}
+
+.result {
+  margin-top: 18px;
+  padding: 20px;
+  border: 1px solid rgb(196 165 255 / 20%);
+  border-radius: 16px;
+  background: #100d15;
+}
+
+.result h2 {
+  margin: 0 0 8px;
+  font-size: 19px;
+}
+
+.qr {
+  display: block;
+  width: min(100%, 240px);
+  margin: 18px auto;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.code {
+  display: block;
+  width: 100%;
+  min-height: 90px;
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid #493c58;
+  border-radius: 10px;
+  background: #0b0910;
+  color: #f7f3ff;
+  font: inherit;
+  overflow-wrap: anywhere;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin-top: 12px;
+  padding: 13px 16px;
+  border: 0;
+  border-radius: 10px;
+  background: linear-gradient(100deg, #7c3aed, #5b21b6);
+  color: #fff;
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+  text-align: center;
+  text-decoration: none;
+  transition: filter 140ms ease, transform 140ms ease;
+}
+
+.button:hover {
+  filter: brightness(1.12);
+}
+
+.button:active {
+  transform: translateY(1px);
+}
+
+.button:focus-visible,
+.back:focus-visible,
+.brand:focus-visible {
+  outline: 3px solid #c4a5ff;
+  outline-offset: 3px;
+}
+
+.button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.finePrint {
+  margin: 18px 0 0;
+  color: #9588a3;
+  font-size: 11px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+@media (max-width: 760px) {
+  .page {
+    padding: 18px 16px calc(32px + env(safe-area-inset-bottom));
+  }
+
+  .topbar {
+    padding-bottom: 20px;
+  }
+
+  .heading {
+    margin: 32px auto 22px;
+  }
+
+  .layout {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .summaryCard {
+    position: static;
+    order: 0;
+    padding: 20px;
+  }
+
+  .paymentCard {
+    order: 1;
+    padding: 20px;
+  }
+}
+
+@media (max-width: 420px) {
+  .page {
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+
+  .secureNote {
+    max-width: 130px;
+    font-size: 11px;
+  }
+
+  .brand {
+    gap: 8px;
+    font-size: 13px;
+  }
+
+  .brandMark {
+    width: 38px;
+    height: 38px;
+  }
+
+  .paymentCard {
+    padding: 16px;
+  }
+
+  .choiceCard {
+    grid-template-columns: 38px 1fr auto;
+    gap: 10px;
+    padding: 14px;
+  }
+
+  .choiceIcon {
+    width: 38px;
+    height: 38px;
+  }
+
+  .addressRow {
+    grid-template-columns: minmax(0, 1fr) 92px;
+    gap: 9px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button {
+    transition: none;
+  }
+}

@@ -1,0 +1,8 @@
+html,
+body {
+  min-height: 100%;
+  margin: 0;
+  background: #0b0910;
+}
+
+.legacy-error{position:fixed;inset:auto 12px 12px;z-index:100;padding:12px 16px;border:1px solid #a33;border-radius:10px;background:#300;color:#fff;font:14px/1.4 system-ui,sans-serif}

@@ -1,0 +1,78 @@
+
+<div class="wrap">
+ <header>
+  <a class="brand" href="/">Jay<b>Ey</b></a>
+  <a class="back" href="/">Voltar à loja</a>
+ </header>
+ <section class="panel dashboard-login" id="dashboard-login" aria-labelledby="dashboard-login-title" hidden>
+  <h1 id="dashboard-login-title">Acesso ao dashboard</h1>
+  <p class="section-note">Entre com a senha administrativa para ver os pedidos e os dados dos clientes.</p>
+  <form id="dashboard-login-form">
+   <label>Senha do dashboard<input id="dashboard-password" type="password" autocomplete="current-password" required></label>
+   <button class="primary" type="submit">Entrar</button>
+  </form>
+  <p class="message" id="dashboard-login-message" role="alert"></p>
+ </section>
+ <div id="dashboard-content" hidden>
+ <h1>Dashboard da loja</h1>
+ <p class="intro">Acompanhe as vendas e gerencie o estoque da Jay Ey.</p>
+ <div class="session">
+  <span class="message" id="orders-message" role="status">Carregando pedidos...</span>
+  <button class="secondary" id="dashboard-logout" type="button">Sair do dashboard</button>
+ </div>
+ <h2 class="section-title">Pedidos online</h2>
+ <p class="section-note">Pedidos do checkout, incluindo forma de recebimento, contato, endereço e status do pagamento.</p>
+ <section class="panel" aria-label="Pedidos online">
+  <div class="orders-list" id="orders-list"></div>
+ </section>
+ <h2 class="section-title">Vendas</h2>
+ <p class="section-note">Registro manual por enquanto. As vendas não são importadas automaticamente do WhatsApp nem confirmadas por pagamento.</p>
+ <section class="panel" aria-label="Resumo de vendas">
+  <div class="periods" role="group" aria-label="Período das vendas">
+   <button class="period" type="button" data-period="day" aria-pressed="true">Hoje</button>
+   <button class="period" type="button" data-period="week" aria-pressed="false">Esta semana</button>
+   <button class="period" type="button" data-period="month" aria-pressed="false">Este mês</button>
+  </div>
+  <div class="metrics">
+   <div class="metric"><span>Faturamento registrado</span><strong id="sales-total">R$ 0,00</strong></div>
+   <div class="metric"><span>Vendas registradas</span><strong id="sales-count">0</strong></div>
+   <div class="metric"><span>Valor médio</span><strong id="sales-average">R$ 0,00</strong></div>
+  </div>
+  <h3 class="chart-title" id="chart-title">Vendas por hora · hoje</h3>
+  <div class="chart-scroll"><div class="chart" id="sales-chart" aria-label="Gráfico de vendas"></div></div>
+  <h3 class="chart-title">Registrar venda</h3>
+  <form class="sale-form" id="sale-form">
+   <label>Valor recebido (R$)<input id="sale-amount" type="number" min="0.01" step="0.01" inputmode="decimal" placeholder="Ex.: 35,00" required></label>
+   <label>Data da venda<input id="sale-date" type="date" required></label>
+   <button class="primary" type="submit">Registrar venda</button>
+  </form>
+  <h3 class="chart-title">Vendas recentes</h3>
+  <div class="sales-list" id="sales-list"></div>
+ </section>
+ <h2 class="section-title">Categorias</h2>
+ <p class="section-note">Crie e renomeie categorias exibidas no menu e na loja.</p>
+ <section class="panel">
+  <form class="category-form" id="category-form">
+   <label>Nova categoria<input id="category-name" maxlength="40" placeholder="Ex.: Rosh" required></label>
+   <label>Descrição da categoria<input id="category-description" maxlength="100" placeholder="Ex.: Modelos disponíveis"></label>
+   <button class="primary" type="submit">Adicionar categoria</button>
+  </form>
+  <div id="categories" class="categories"></div>
+ </section>
+ <h2 class="section-title">Produtos</h2>
+ <p class="section-note">Cadastre produtos, preços, categorias e imagens. Estoque e catálogo ficam salvos apenas neste navegador.</p>
+ <section class="panel">
+  <form class="new-product-form" id="new-product-form">
+   <label>Nome do produto<input name="name" maxlength="80" required></label>
+   <label>Marca<input name="brand" maxlength="50" required></label>
+   <label>Categoria<select name="category" required></select></label>
+   <label>Preço (R$)<input name="price" type="number" min="0.01" step="0.01" required></label>
+   <label class="wide-field">Descrição<input name="description" maxlength="180" required></label>
+   <label class="wide-field">Imagem do produto<input name="image" type="file" accept="image/png,image/jpeg,image/webp"><small>PNG, JPG ou WebP; a imagem será reduzida para caber no armazenamento do navegador.</small></label>
+   <button class="primary wide-field" type="submit">Cadastrar produto</button>
+  </form>
+  <p class="message" id="message" role="status">As alterações da loja são sincronizadas entre abas neste mesmo navegador.</p>
+  <div class="products" id="products"></div>
+ </section>
+ </div>
+</div>
