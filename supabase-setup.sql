@@ -55,6 +55,7 @@ create policy inventory_admin_update
 grant usage on schema public to anon, authenticated;
 grant select on public.inventory to anon, authenticated;
 grant insert, update on public.inventory to authenticated;
+grant select, insert, update on public.inventory to service_role;
 grant select on public.inventory_admins to authenticated;
 
 insert into public.inventory (id, stock, flavors)

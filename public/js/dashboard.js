@@ -1,7 +1,8 @@
 
-var STORAGE_KEY="jayey.inventory.v1";
 var SALES_STORAGE_KEY="jayey.sales.v1";
 var CATALOG_STORAGE_KEY="jayey.catalog.v1";
+var sharedInventory={};
+var sharedInventoryReady=false;
 var selectedPeriod="day";
 var categories=[
  {id:"essencias",name:"Essências",description:"Escolha sua marca favorita"},
@@ -78,7 +79,30 @@ function escapeHtml(value){return String(value).replace(/[&<>"']/g,function(char
 function setDashboardAccess(authenticated){
  $("dashboard-login").hidden=authenticated;
  $("dashboard-content").hidden=!authenticated;
- if(authenticated)loadOrders();
+ if(authenticated){loadOrders();loadSharedInventory()}
+ else sharedInventoryReady=false;
+}
+async function loadSharedInventory(){
+ var message=$("message");
+ sharedInventoryReady=false;
+ message.textContent="Carregando estoque e sabores compartilhados...";
+ try{
+  var response=await fetch("/api/dashboard/inventory",{cache:"no-store",credentials:"same-origin"});
+  var result=await response.json();
+  if(response.status===401){setDashboardAccess(false);$("dashboard-login-message").textContent="Sua sessão expirou. Entre novamente.";return}
+  if(!response.ok)throw new Error(typeof result.error==="string"?result.error:"Não foi possível carregar o estoque compartilhado.");
+  if(!Array.isArray(result.inventory))throw new Error("O servidor retornou um estoque inválido.");
+  sharedInventory={};
+  result.inventory.forEach(function(item){
+   if(item&&typeof item.id==="string")sharedInventory[item.id]={stock:item.stock,flavors:Array.isArray(item.flavors)?item.flavors:[]};
+  });
+  sharedInventoryReady=true;
+  render();
+  message.textContent="Estoque e sabores sincronizados com a loja.";
+ }catch(error){
+  message.textContent="Não foi possível carregar o estoque compartilhado: "+error.message;
+  render();
+ }
 }
 async function loadOrders(){
  var list=$("orders-list"),message=$("orders-message");
@@ -158,11 +182,7 @@ function categoryOptions(selected){
  return categories.map(function(category){return '<option value="'+escapeHtml(category.id)+'" '+(category.id===selected?"selected":"")+'>'+escapeHtml(category.name)+'</option>'}).join("");
 }
 function readInventory(){
- var stored=localStorage.getItem(STORAGE_KEY);
- if(!stored)return {};
- var parsed=JSON.parse(stored);
- if(!parsed||typeof parsed!=="object"||Array.isArray(parsed))throw new Error("Os dados salvos do estoque estão inválidos.");
- return parsed;
+ return sharedInventoryReady?sharedInventory:{};
 }
 function render(){
  var inventory,catalog;
@@ -179,7 +199,7 @@ function render(){
   var image=product.img||"",imageSource=image.indexOf("data:image/")===0||image.indexOf("https://")===0||image.indexOf("http://")===0?image:"/"+image;
   var imagePreview=image?'<img src="'+escapeHtml(imageSource)+'" alt="">':"";
   var deleteButton=product.id==="bass"||product.id==="alu"?"":'<button class="secondary danger" type="button" data-product-delete="'+escapeHtml(product.id)+'">Excluir produto</button>';
-  return '<article class="product" data-product="'+escapeHtml(product.id)+'"><h2>'+escapeHtml(product.n)+'</h2><form class="product-editor" data-product-save="'+escapeHtml(product.id)+'"><div class="product-editor-grid"><label>Nome<input name="name" maxlength="80" value="'+escapeHtml(product.n)+'" required></label><label>Marca<input name="brand" maxlength="50" value="'+escapeHtml(product.brand)+'" required></label><label>Categoria<select name="category">'+categoryOptions(product.c)+'</select></label><label>Preço (R$)<input name="price" type="number" min="0.01" step="0.01" value="'+product.p+'" required></label><label class="wide-field">Descrição<input name="description" maxlength="180" value="'+escapeHtml(product.d)+'" required></label><label class="wide-field">Trocar imagem<input name="image" type="file" accept="image/png,image/jpeg,image/webp"><small>Imagem atual: '+(product.img?"configurada":"nenhuma")+'. Selecione um arquivo para substituir.</small></label></div><div class="product-preview">'+imagePreview+'<span>Prévia da imagem do produto</span></div><div class="product-actions"><button class="secondary" type="submit">Salvar produto</button>'+deleteButton+'</div></form><form class="product-form" data-save="'+escapeHtml(product.id)+'"><label>Estoque<input class="stock" type="number" min="0" step="1" inputmode="numeric" value="'+(Number.isInteger(current.stock)?current.stock:"")+'" placeholder="Não informado"></label><label>Sabores<input class="flavors" type="text" value="'+escapeHtml(flavors.join(", "))+'" placeholder="Ex.: menta, uva"></label><button class="secondary" type="submit">Salvar estoque e sabores</button></form></article>';
+  return '<article class="product" data-product="'+escapeHtml(product.id)+'"><h2>'+escapeHtml(product.n)+'</h2><form class="product-editor" data-product-save="'+escapeHtml(product.id)+'"><div class="product-editor-grid"><label>Nome<input name="name" maxlength="80" value="'+escapeHtml(product.n)+'" required></label><label>Marca<input name="brand" maxlength="50" value="'+escapeHtml(product.brand)+'" required></label><label>Categoria<select name="category">'+categoryOptions(product.c)+'</select></label><label>Preço (R$)<input name="price" type="number" min="0.01" step="0.01" value="'+product.p+'" required></label><label class="wide-field">Descrição<input name="description" maxlength="180" value="'+escapeHtml(product.d)+'" required></label><label class="wide-field">Trocar imagem<input name="image" type="file" accept="image/png,image/jpeg,image/webp"><small>Imagem atual: '+(product.img?"configurada":"nenhuma")+'. Selecione um arquivo para substituir.</small></label></div><div class="product-preview">'+imagePreview+'<span>Prévia da imagem do produto</span></div><div class="product-actions"><button class="secondary" type="submit">Salvar produto</button>'+deleteButton+'</div></form><form class="product-form" data-save="'+escapeHtml(product.id)+'"><label>Estoque<input class="stock" type="number" min="0" step="1" inputmode="numeric" value="'+(Number.isInteger(current.stock)?current.stock:"")+'" placeholder="Não informado" '+(sharedInventoryReady?"":"disabled")+'></label><label>Sabores<input class="flavors" type="text" value="'+escapeHtml(flavors.join(", "))+'" placeholder="Ex.: menta, uva" '+(sharedInventoryReady?"":"disabled")+'></label><button class="secondary" type="submit" '+(sharedInventoryReady?"":"disabled")+'>Salvar estoque e sabores online</button></form></article>';
  }).join("");
 }
 $("categories").addEventListener("submit",function(event){
@@ -249,13 +269,12 @@ $("new-product-form").addEventListener("submit",async function(event){
   var catalog=readCatalog(),product=await productFromForm(form,null);
   if(catalog.products.some(function(item){return item.id===product.id}))throw new Error("Já existe um produto com esse identificador. Tente outro nome.");
   catalog.products.push(product);
-  var inventory=readInventory();inventory[product.id]={stock:null,flavors:[]};
-  localStorage.setItem(CATALOG_STORAGE_KEY,JSON.stringify(catalog));localStorage.setItem(STORAGE_KEY,JSON.stringify(inventory));
+  localStorage.setItem(CATALOG_STORAGE_KEY,JSON.stringify(catalog));
   products=catalog.products;categories=catalog.categories;form.reset();render();$("message").textContent="Produto cadastrado na loja neste navegador.";
  }catch(error){$("message").textContent="Não foi possível cadastrar o produto: "+error.message}
  finally{button.disabled=false}
 });
-$("products").addEventListener("submit",function(event){
+$("products").addEventListener("submit",async function(event){
  var productForm=event.target.closest("[data-product-save]");
  if(productForm){
   event.preventDefault();
@@ -282,14 +301,29 @@ $("products").addEventListener("submit",function(event){
   $("message").textContent="Informe um estoque inteiro igual ou maior que zero.";
   return;
  }
- var inventory;
- try{inventory=readInventory();products=readCatalog().products}
- catch(error){$("message").textContent="Não foi possível ler o estoque salvo: "+error.message;return}
- inventory[id]={stock:stock,flavors:flavors};
+ if(!sharedInventoryReady){$("message").textContent="O estoque compartilhado ainda não carregou. Atualize o dashboard e tente novamente.";return}
+ var submitButton=form.querySelector("button[type=submit]");
+ submitButton.disabled=true;
+ $("message").textContent="Salvando estoque e sabores para a loja...";
  try{
-  localStorage.setItem(STORAGE_KEY,JSON.stringify(inventory));
-  $("message").textContent="Estoque e sabores salvos neste navegador.";
- }catch(error){$("message").textContent="Não foi possível salvar neste navegador: "+error.message}
+  products=readCatalog().products;
+  var response=await fetch("/api/dashboard/inventory",{
+   method:"PUT",
+   credentials:"same-origin",
+   headers:{"Content-Type":"application/json"},
+   body:JSON.stringify({items:[{id:id,stock:stock,flavors:flavors}]})
+  });
+  var result=await response.json();
+  if(response.status===401){setDashboardAccess(false);throw new Error("Sua sessão expirou. Entre novamente no dashboard.")}
+  if(!response.ok)throw new Error(typeof result.error==="string"?result.error:"Não foi possível salvar o estoque.");
+  if(!Array.isArray(result.inventory)||!result.inventory.length)throw new Error("O servidor não confirmou a atualização do estoque.");
+  result.inventory.forEach(function(item){
+   if(item&&typeof item.id==="string")sharedInventory[item.id]={stock:item.stock,flavors:Array.isArray(item.flavors)?item.flavors:[]};
+  });
+  render();
+  $("message").textContent="Estoque e sabores salvos online. Já estão disponíveis na loja; atualize a página da loja para conferir.";
+ }catch(error){$("message").textContent="Não foi possível salvar o estoque compartilhado: "+error.message}
+ finally{submitButton.disabled=!sharedInventoryReady}
 });
 $("products").addEventListener("click",function(event){
  var button=event.target.closest("[data-product-delete]");
@@ -298,12 +332,11 @@ $("products").addEventListener("click",function(event){
  if(!window.confirm("Excluir este produto da loja?"))return;
  try{
   var catalog=readCatalog();catalog.products=catalog.products.filter(function(product){return product.id!==id});
-  var inventory=readInventory();delete inventory[id];
-  localStorage.setItem(CATALOG_STORAGE_KEY,JSON.stringify(catalog));localStorage.setItem(STORAGE_KEY,JSON.stringify(inventory));
+  localStorage.setItem(CATALOG_STORAGE_KEY,JSON.stringify(catalog));
   products=catalog.products;categories=catalog.categories;render();$("message").textContent="Produto removido da loja.";
  }catch(error){$("message").textContent="Não foi possível excluir o produto: "+error.message}
 });
-window.addEventListener("storage",function(event){if(event.key===STORAGE_KEY||event.key===CATALOG_STORAGE_KEY)render()});
+window.addEventListener("storage",function(event){if(event.key===CATALOG_STORAGE_KEY)render()});
 document.querySelectorAll("[data-period]").forEach(function(button){
  button.addEventListener("click",function(){
   selectedPeriod=button.getAttribute("data-period");
