@@ -26,6 +26,7 @@
   }
   messages.appendChild(message);
   messages.scrollTop=messages.scrollHeight;
+  return message;
  }
  function linkToTeam(message){
   return {text:message||"Para não te passar uma informação errada, é melhor confirmar isso com a equipe da loja.",link:"https://wa.me/"+STORE_WHATSAPP_PHONE+"?text="+encodeURIComponent("Olá! Vim pelo site Jay Ey e queria tirar uma dúvida.")};
@@ -80,10 +81,10 @@
   var products=matchedProducts(text);
   var flavors=[];
   if(
-   contains(text,["dashboard","painel administrativo","painel da loja"])&&
-   contains(text,["abrir","abre","acessar","acessa","entrar","ir para","ir pro","me leva","mostrar"])
+   /(^|\s)(dashboard|deshboard|painel)(\s|$)/.test(text)&&
+   /(abr|acess|entr|ir para|ir pro|me leva|mostr|quero|preciso|vai)/.test(text)
   ){
-   return {text:"Claro! Vou abrir o dashboard da loja em uma nova aba. Entre com sua senha administrativa.",link:"/dashboard",linkLabel:"Abrir dashboard",openDashboard:true};
+   return {text:"Claro! Vou abrir o dashboard da loja nesta aba. Entre com sua senha administrativa.",link:"/dashboard",linkLabel:"Abrir dashboard",openDashboard:true};
   }
   P.filter(function(product){return product.c==="essencias"}).forEach(function(product){
    stockFor(product.id).flavors.forEach(function(flavor){
@@ -178,8 +179,11 @@
    console.error("Jay assistant could not answer the message.",error);
    response=linkToTeam("Tive um problema para responder agora. A equipe consegue ajudar você pelo WhatsApp.");
   }
-  addMessage(response.text,"jay",response.link,response.linkLabel);
-  if(response.openDashboard)window.open("/dashboard","_blank","noopener,noreferrer");
+  var responseMessage=addMessage(response.text,"jay",response.link,response.linkLabel);
+  if(response.openDashboard){
+   var dashboardLink=responseMessage.querySelector('a[href="/dashboard"]');
+   if(dashboardLink)dashboardLink.click();
+  }
  }
  function sendFromInput(event){
   event.preventDefault();
