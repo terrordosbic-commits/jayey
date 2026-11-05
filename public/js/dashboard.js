@@ -350,6 +350,22 @@ $("dashboard-logout").addEventListener("click",async function(){
  $("dashboard-login-message").textContent="Sessão encerrada.";
  setDashboardAccess(false);
 });
+$("music-form").addEventListener("submit",async function(event){
+ event.preventDefault();
+ var file=$("music-file").files[0],button=this.querySelector("button[type=submit]"),message=$("music-message");
+ if(!file){message.textContent="Selecione um arquivo de áudio.";return}
+ button.disabled=true;message.textContent="Enviando música...";
+ try{
+  var formData=new FormData();formData.append("music",file);
+  var response=await fetch("/api/dashboard/music",{method:"POST",credentials:"same-origin",body:formData});
+  var result=await response.json();
+  if(response.status===401){setDashboardAccess(false);throw new Error("Sua sessão expirou. Entre novamente no dashboard.")}
+  if(!response.ok)throw new Error(typeof result.error==="string"?result.error:"Não foi possível trocar a música.");
+  this.reset();
+  message.textContent="Música trocada! Ela já está disponível para os visitantes da loja.";
+ }catch(error){message.textContent=error.message||"Não foi possível trocar a música."}
+ finally{button.disabled=false}
+});
 void checkDashboardSession();
 try{var initialCatalog=readCatalog();products=initialCatalog.products;categories=initialCatalog.categories}
 catch(error){$("message").textContent="Não foi possível carregar o catálogo: "+error.message}

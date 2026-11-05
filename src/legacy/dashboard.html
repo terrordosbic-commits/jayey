@@ -16,6 +16,15 @@
  <div id="dashboard-content" hidden>
  <h1>Dashboard da loja</h1>
  <p class="intro">Acompanhe as vendas e gerencie o estoque da Jay Ey.</p>
+ <h2 class="section-title">Música da loja</h2>
+ <p class="section-note">Troque a música que toca na loja sem publicar o site novamente. MP3, M4A, OGG, WAV ou WebM; até 5 MB.</p>
+ <section class="panel" aria-label="Música da loja">
+  <form id="music-form" class="music-form">
+   <label>Arquivo de áudio<input id="music-file" type="file" accept="audio/mpeg,audio/mp4,audio/ogg,audio/wav,audio/webm" required></label>
+   <button class="primary" type="submit">Trocar música</button>
+  </form>
+  <p class="message" id="music-message" role="status">A nova música ficará disponível para todos após o envio.</p>
+ </section>
  <div class="session">
   <span class="message" id="orders-message" role="status">Carregando pedidos...</span>
   <button class="secondary" id="dashboard-logout" type="button">Sair do dashboard</button>

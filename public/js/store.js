@@ -2,6 +2,15 @@
 var SUPABASE_URL=window.JAYEY_SUPABASE_CONFIG.url;
 var SUPABASE_ANON_KEY=window.JAYEY_SUPABASE_CONFIG.anonKey;
 var supabaseConfigured=Boolean(SUPABASE_URL&&SUPABASE_ANON_KEY);
+var customMusicUrl=SUPABASE_URL.replace(/\/+$/,"")+"/storage/v1/object/public/jayey-media/store/music";
+fetch(customMusicUrl,{method:"HEAD",cache:"no-store"}).then(function(response){
+ if(response.ok){
+  var music=$("site-music");
+  music.src=customMusicUrl+"?v="+Date.now();
+ }
+}).catch(function(error){
+ console.warn("Não foi possível verificar a música personalizada da loja.",error);
+});
 var inventoryReady=!supabaseConfigured;
 var accessToken="";
 var inventory={};

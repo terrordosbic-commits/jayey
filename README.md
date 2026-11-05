@@ -27,4 +27,6 @@ No servidor, configure `SUPABASE_URL`, `SUPABASE_SECRET_KEY`, `MERCADOPAGO_ACCES
 
 Execute novamente `supabase-orders.sql` no Supabase para criar/atualizar a tabela com os campos de recebimento, entrega e contato antes de testar o fluxo.
 
+Para trocar a música da loja sem novo deploy, execute `supabase-music.sql` uma vez no SQL Editor do Supabase. Depois entre em `/dashboard`, use a seção “Música da loja” e envie um arquivo MP3, M4A, OGG, WAV ou WebM de até 5 MB. O arquivo fica no bucket público `jayey-media`; o endpoint de upload exige sessão do dashboard e usa a chave secreta apenas no servidor.
+
 O dashboard permite cadastrar e editar produtos, preços, descrições, categorias e imagens, além de gerenciar o estoque e os sabores. O catálogo, estoque e vendas ficam no `localStorage` deste navegador e não são compartilhados entre dispositivos. Imagens enviadas são redimensionadas e armazenadas no navegador; evite cadastrar muitas imagens grandes. Como o navegador separa dados por origem, os registros feitos ao abrir os arquivos antigos diretamente (`file://`) não aparecem automaticamente em `http://localhost:3000`; eles permanecem na origem antiga. As páginas originais em HTML foram mantidas como referência; o conteúdo migrado está em `src/legacy`, e imagens e outros arquivos estáticos são servidos por `public`.
