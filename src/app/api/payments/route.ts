@@ -363,6 +363,12 @@ export async function POST(request: Request) {
   const transactionDetails = isRecord(payment.transaction_details)
     ? payment.transaction_details
     : {};
+  const pointOfInteraction = isRecord(payment.point_of_interaction)
+    ? payment.point_of_interaction
+    : {};
+  const interactionTransactionData = isRecord(pointOfInteraction.transaction_data)
+    ? pointOfInteraction.transaction_data
+    : {};
   const paymentId =
     typeof payment.id === "number" || typeof payment.id === "string"
       ? String(payment.id)
@@ -403,15 +409,21 @@ export async function POST(request: Request) {
       statusDetail: payment.status_detail,
       paymentMethodId: payment.payment_method_id,
       qrCode:
-        typeof transactionDetails.qr_code === "string"
+        typeof interactionTransactionData.qr_code === "string"
+          ? interactionTransactionData.qr_code
+          : typeof transactionDetails.qr_code === "string"
           ? transactionDetails.qr_code
           : null,
       qrCodeBase64:
-        typeof transactionDetails.qr_code_base64 === "string"
+        typeof interactionTransactionData.qr_code_base64 === "string"
+          ? interactionTransactionData.qr_code_base64
+          : typeof transactionDetails.qr_code_base64 === "string"
           ? transactionDetails.qr_code_base64
           : null,
       ticketUrl:
-        typeof transactionDetails.ticket_url === "string"
+        typeof interactionTransactionData.ticket_url === "string"
+          ? interactionTransactionData.ticket_url
+          : typeof transactionDetails.ticket_url === "string"
           ? transactionDetails.ticket_url
           : null,
     },

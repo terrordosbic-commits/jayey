@@ -101,6 +101,31 @@ function money(value: number) {
   }).format(value);
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function mergePaymentStatus(
+  current: PaymentResult,
+  result: Record<string, unknown>,
+): PaymentResult {
+  return {
+    ...current,
+    status: result.status as string,
+    statusDetail:
+      typeof result.statusDetail === "string"
+        ? result.statusDetail
+        : current.statusDetail,
+    qrCode: typeof result.qrCode === "string" ? result.qrCode : current.qrCode,
+    qrCodeBase64:
+      typeof result.qrCodeBase64 === "string"
+        ? result.qrCodeBase64
+        : current.qrCodeBase64,
+    ticketUrl:
+      typeof result.ticketUrl === "string" ? result.ticketUrl : current.ticketUrl,
+  };
+}
+
 function loadMercadoPagoSdk() {
   if (window.MercadoPago) return Promise.resolve();
 
@@ -350,22 +375,11 @@ export default function CheckoutClient({ publicKey }: { publicKey: string }) {
         if (
           active &&
           response.ok &&
-          result &&
-          typeof result === "object" &&
-          "status" in result &&
+          isRecord(result) &&
           typeof result.status === "string"
         ) {
           setPayment((current) =>
-            current
-              ? {
-                  ...current,
-                  status: result.status as string,
-                  statusDetail:
-                    "statusDetail" in result && typeof result.statusDetail === "string"
-                      ? result.statusDetail
-                      : current.statusDetail,
-                }
-              : current,
+            current ? mergePaymentStatus(current, result) : current,
           );
         }
       } catch {
@@ -399,24 +413,13 @@ export default function CheckoutClient({ publicKey }: { publicKey: string }) {
       const result: unknown = await response.json();
       if (
         !response.ok ||
-        !result ||
-        typeof result !== "object" ||
-        !("status" in result) ||
+        !isRecord(result) ||
         typeof result.status !== "string"
       ) {
         throw new Error("Não foi possível consultar o status. Tente novamente.");
       }
       setPayment((current) =>
-        current
-          ? {
-              ...current,
-              status: result.status as string,
-              statusDetail:
-                "statusDetail" in result && typeof result.statusDetail === "string"
-                  ? result.statusDetail
-                  : current.statusDetail,
-            }
-          : current,
+        current ? mergePaymentStatus(current, result) : current,
       );
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Não foi possível atualizar o status.");

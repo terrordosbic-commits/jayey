@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { getAccessToken, parseJsonBody } from "@/lib/checkout";
 import { updateOrder } from "@/lib/supabase-admin";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
 export async function GET(request: Request) {
   const accessToken = getAccessToken();
   if (!accessToken) {
@@ -69,8 +73,36 @@ export async function GET(request: Request) {
     );
   }
 
+  const transactionDetails = isRecord(payment.transaction_details)
+    ? payment.transaction_details
+    : {};
+  const pointOfInteraction = isRecord(payment.point_of_interaction)
+    ? payment.point_of_interaction
+    : {};
+  const interactionTransactionData = isRecord(pointOfInteraction.transaction_data)
+    ? pointOfInteraction.transaction_data
+    : {};
+
   return NextResponse.json({
     status: payment.status,
     statusDetail: payment.status_detail,
+    qrCode:
+      typeof interactionTransactionData.qr_code === "string"
+        ? interactionTransactionData.qr_code
+        : typeof transactionDetails.qr_code === "string"
+          ? transactionDetails.qr_code
+          : null,
+    qrCodeBase64:
+      typeof interactionTransactionData.qr_code_base64 === "string"
+        ? interactionTransactionData.qr_code_base64
+        : typeof transactionDetails.qr_code_base64 === "string"
+          ? transactionDetails.qr_code_base64
+          : null,
+    ticketUrl:
+      typeof interactionTransactionData.ticket_url === "string"
+        ? interactionTransactionData.ticket_url
+        : typeof transactionDetails.ticket_url === "string"
+          ? transactionDetails.ticket_url
+          : null,
   });
 }
